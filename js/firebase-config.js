@@ -10,12 +10,13 @@
  */
 
 window.FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyC8YAXd6S3qXkcHxwDU5NSvEi0Lyyg7t2Q",
+  authDomain: "sidif-jatim.firebaseapp.com",
+  projectId: "sidif-jatim",
+  storageBucket: "sidif-jatim.firebasestorage.app",
+  messagingSenderId: "986122781749",
+  appId: "1:986122781749:web:4def65600b56597e60dd7c",
+  measurementId: "G-W9TGGFQ5ZV"
 };
 
 // Cek apakah ada konfigurasi tersimpan di localStorage dari panel admin
