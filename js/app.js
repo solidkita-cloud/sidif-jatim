@@ -14,6 +14,9 @@ window.SIDIF_APP = {
 
   init() {
     this.applySettings();
+    this.renderNotifications();
+    this.renderOnlinePresence();
+
     this.setupEventListeners();
     this.renderTableData();
     if (window.SIDIF_CLOUD) {
@@ -580,12 +583,11 @@ window.SIDIF_APP = {
     const kontakEpiVal = document.getElementById("form-kontak-epi").checked;
 
     const classObj = window.SIDIF_FORMS.calculateClassification({
-      hasilKultur: hasilKulturOverall,
-      toksigenitas: toksikVal,
-      pseudomembran: document.getElementById("form-pseudo").checked,
-      demam: document.getElementById("form-demam").checked,
-      bullneck: document.getElementById("form-bullneck").checked,
-      hubunganEpidemiologi: kontakEpiVal
+      hasilKulturHidung: hasilKulturH,
+      hasilKulturTenggorok: hasilKulturT,
+      tanggalAmbilHidung: tglAmbilHidung,
+      tanggalAmbilTenggorok: tglAmbilTenggorok,
+      hasilKultur: hasilKulturOverall
     });
 
     const kr = parseInt(document.getElementById("form-kontak-rumah").value || "0", 10);
@@ -708,6 +710,19 @@ window.SIDIF_APP = {
     if (toast) {
       document.getElementById("toast-msg").innerText = `Laporan Baru Masuk: ${newCase.kabupaten} baru saja menginput kasus difteri atas nama ${newCase.nama} (${newCase.klasifikasiKlinis}).`;
       toast.classList.remove("hidden");
+
+      // Masukkan ke riwayat notifikasi di lonceng
+      this.notifications.unshift({
+        id: "notif-" + Date.now(),
+        title: `Laporan Kasus Baru: ${newCase.kabupaten}`,
+        desc: `Kasus an. ${newCase.nama} (${newCase.noEpid || 'DIF-3'}) &bull; Klasifikasi: ${newCase.klasifikasiKlinis}`,
+        time: "Baru saja",
+        region: newCase.kabupaten,
+        read: false,
+        badge: newCase.klasifikasiKlinis,
+        badgeColor: newCase.klasifikasiKlinis === "Difteri Konfirmasi Lab" ? "bg-red-100 text-red-800" : (newCase.klasifikasiKlinis === "Pending" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800")
+      });
+      this.renderNotifications();
       setTimeout(() => {
         toast.classList.add("hidden");
       }, 7000);
@@ -737,6 +752,306 @@ window.SIDIF_APP = {
   },
 
   // Setup Seluruh Event Listeners
+  
+  // State Notifikasi, Presence Petugas, dan Live Chat Koordinasi
+  notifications: [
+    {
+      id: "notif-1",
+      title: "Konfirmasi Lab Positif Kultur BBLKM",
+      desc: "Kasus an. Sdr. R (Tuban) terkonfirmasi positif C. diphtheriae toksigenik.",
+      time: "15 mnt lalu",
+      region: "Kabupaten Tuban",
+      read: false,
+      badge: "Difteri Konfirmasi Lab",
+      badgeColor: "bg-red-100 text-red-800"
+    },
+    {
+      id: "notif-2",
+      title: "Laporan Kasus Difteri Baru",
+      desc: "Dinkes Kab. Bangkalan melaporkan 1 kasus anak usia 7 th dengan pseudomembran.",
+      time: "40 mnt lalu",
+      region: "Kabupaten Bangkalan",
+      read: false,
+      badge: "Pending",
+      badgeColor: "bg-blue-100 text-blue-800"
+    },
+    {
+      id: "notif-3",
+      title: "Peringatan Respon PE Segera",
+      desc: "Kasus suspek di Kab. Sampang memerlukan penyelesaian formulir PE < 24 jam.",
+      time: "1 jam lalu",
+      region: "Kabupaten Sampang",
+      read: true,
+      badge: "Kompatibel Klinis",
+      badgeColor: "bg-amber-100 text-amber-800"
+    }
+  ],
+
+  onlineOfficers: [
+    { name: "Super Admin Surveilans", region: "Dinas Kesehatan Provinsi Jatim", role: "Provinsi", status: "Sedang Memantau Dashboard & Kurva Epi", time: "Aktif Baru Saja" },
+    { name: "dr. Sulvy Dwi Anggraini, M.Kes", region: "Kabid P2P Dinkes Prov. Jatim", role: "Provinsi", status: "Sedang Memeriksa Validasi Lab", time: "Aktif Baru Saja" },
+    { name: "Petugas Surveilans Bangkalan", region: "Kabupaten Bangkalan", role: "Kabupaten", status: "Sedang Input Form DIF-3", time: "Aktif 2 mnt lalu" },
+    { name: "Petugas Surveilans Tuban", region: "Kabupaten Tuban", role: "Kabupaten", status: "Sedang Cetak Lembar Form PE", time: "Aktif 5 mnt lalu" },
+    { name: "Petugas Surveilans Gresik", region: "Kabupaten Gresik", role: "Kabupaten", status: "Sedang Pelacakan Kontak Erat", time: "Aktif 8 mnt lalu" },
+    { name: "Petugas Surveilans Sampang", region: "Kabupaten Sampang", role: "Kabupaten", status: "Sedang Pengambilan Spesimen BBLKM", time: "Aktif 10 mnt lalu" },
+    { name: "Petugas Surveilans Sumenep", region: "Kabupaten Sumenep", role: "Kabupaten", status: "Online", time: "Aktif 12 mnt lalu" },
+    { name: "Petugas Surveilans Pamekasan", region: "Kabupaten Pamekasan", role: "Kabupaten", status: "Online", time: "Aktif 15 mnt lalu" },
+    { name: "Petugas Surveilans Sidoarjo", region: "Kabupaten Sidoarjo", role: "Kabupaten", status: "Sedang Ekspor Rekap Excel", time: "Aktif 18 mnt lalu" },
+    { name: "Petugas Surveilans Surabaya", region: "Kota Surabaya", role: "Kota", status: "Online", time: "Aktif 20 mnt lalu" },
+    { name: "Petugas Surveilans Pasuruan", region: "Kabupaten Pasuruan", role: "Kabupaten", status: "Online", time: "Aktif 22 mnt lalu" },
+    { name: "Petugas Surveilans Malang", region: "Kabupaten Malang", role: "Kabupaten", status: "Online", time: "Aktif 25 mnt lalu" },
+    { name: "Petugas Surveilans Jember", region: "Kabupaten Jember", role: "Kabupaten", status: "Online", time: "Aktif 28 mnt lalu" },
+    { name: "Petugas Surveilans Banyuwangi", region: "Kabupaten Banyuwangi", role: "Kabupaten", status: "Online", time: "Aktif 30 mnt lalu" }
+  ],
+
+  chatMessages: [
+    {
+      id: "msg-1",
+      sender: "Dinkes Provinsi (P2P)",
+      role: "PROVINSI",
+      region: "Jawa Timur",
+      text: "Selamat bertugas rekan-rekan 38 Kab/Kota. Mohon setiap penemuan kasus klinis difteri langsung dilakukan isolasi, penyelidikan kontak serumah, dan pengambilan spesimen usap sebelum antibiotik diberikan.",
+      time: "08:15 WIB"
+    },
+    {
+      id: "msg-2",
+      sender: "Surveilans Tuban",
+      role: "KABUPATEN",
+      region: "Kabupaten Tuban",
+      text: "Siap Provinsi. Pasien konfirmasi lab kultur di Tuban telah mendapatkan terapi ADS 40.000 IU dan kondisi klinis berangsur membaik. 8 kontak serumah telah tuntas profilaksis.",
+      time: "08:35 WIB"
+    },
+    {
+      id: "msg-3",
+      sender: "Surveilans Bangkalan",
+      role: "KABUPATEN",
+      region: "Kabupaten Bangkalan",
+      text: "Lapor Provinsi, 2 spesimen usap tenggorok kasus suspek baru DIF-BKL-009 pagi ini sudah dalam perjalanan kurir ke BBLKM Surabaya.",
+      time: "09:00 WIB"
+    }
+  ],
+
+  // Handler Notifikasi Dropdown
+  toggleNotificationDropdown() {
+    const dropdown = document.getElementById("notification-dropdown");
+    if (!dropdown) return;
+    dropdown.classList.toggle("hidden");
+    if (!dropdown.classList.contains("hidden")) {
+      this.renderNotifications();
+    }
+  },
+
+  renderNotifications() {
+    const container = document.getElementById("notification-list");
+    const counterEl = document.getElementById("bell-counter");
+    if (!container) return;
+
+    const unreadCount = this.notifications.filter(n => !n.read).length;
+    if (counterEl) {
+      if (unreadCount > 0) {
+        counterEl.innerText = unreadCount;
+        counterEl.classList.remove("hidden");
+      } else {
+        counterEl.classList.add("hidden");
+      }
+    }
+
+    if (this.notifications.length === 0) {
+      container.innerHTML = '<div class="p-6 text-center text-slate-400">Tidak ada notifikasi baru saat ini.</div>';
+      return;
+    }
+
+    container.innerHTML = this.notifications.map(n => `
+      <div class="p-3 hover:bg-slate-50 transition cursor-pointer ${n.read ? 'opacity-70 bg-white' : 'bg-emerald-50/40'}" onclick="window.SIDIF_APP.openNotificationItem('${n.id}')">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+            ${!n.read ? '<span class="w-2 h-2 rounded-full bg-emerald-600 shrink-0"></span>' : ''}
+            <span>${n.title}</span>
+          </div>
+          <span class="text-[10px] text-slate-400 shrink-0">${n.time}</span>
+        </div>
+        <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">${n.desc}</p>
+        <div class="flex items-center gap-2 mt-1.5">
+          <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase ${n.badgeColor || 'bg-slate-100 text-slate-700'}">${n.badge || 'Notifikasi'}</span>
+          <span class="text-[10px] text-slate-400 font-medium">${n.region}</span>
+        </div>
+      </div>
+    `).join("");
+  },
+
+  markAllNotificationsRead() {
+    this.notifications.forEach(n => n.read = true);
+    this.renderNotifications();
+  },
+
+  openNotificationItem(notifId) {
+    const n = this.notifications.find(x => x.id === notifId);
+    if (n) {
+      n.read = true;
+      this.renderNotifications();
+      document.getElementById("notification-dropdown").classList.add("hidden");
+      this.showView("table-data");
+    }
+  },
+
+  // Handler Pemantauan Petugas Aktif (Online Presence)
+  toggleOnlinePresenceModal() {
+    const modal = document.getElementById("modal-online-users");
+    if (!modal) return;
+    modal.classList.toggle("hidden");
+    if (!modal.classList.contains("hidden")) {
+      this.renderOnlinePresence();
+    }
+  },
+
+  renderOnlinePresence() {
+    const listEl = document.getElementById("online-users-list");
+    const countEl = document.getElementById("online-modal-count");
+    const headerCountEl = document.getElementById("online-users-count");
+    if (!listEl) return;
+
+    const count = this.onlineOfficers.length;
+    if (countEl) countEl.innerText = `${count} Petugas Aktif`;
+    if (headerCountEl) headerCountEl.innerText = `${count} Petugas Online`;
+
+    listEl.innerHTML = this.onlineOfficers.map(o => `
+      <div class="p-2.5 flex items-center justify-between hover:bg-slate-50 rounded-xl transition">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-full ${o.role === 'Provinsi' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white'} flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+            ${o.name.substring(0, 2).toUpperCase()}
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-slate-800 text-xs">${o.name}</span>
+              <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${o.role === 'Provinsi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">${o.role}</span>
+            </div>
+            <p class="text-[11px] text-slate-500">${o.region} &bull; <span class="text-emerald-700 font-semibold">${o.status}</span></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 text-right shrink-0">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span class="text-[10px] text-emerald-800 font-bold">${o.time}</span>
+        </div>
+      </div>
+    `).join("");
+  },
+
+  // Handler Ruang Koordinasi & Live Chat Tim Difteri
+  toggleChatDrawer() {
+    const box = document.getElementById("chat-box");
+    if (!box) return;
+    box.classList.toggle("hidden");
+    
+    // Update identitas pengirim saat ini
+    const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const senderEl = document.getElementById("chat-current-sender");
+    const roleEl = document.getElementById("chat-current-role");
+    if (senderEl) senderEl.innerText = currentUser ? `${currentUser.username} (${currentUser.region})` : "Dinkes Provinsi (Super Admin)";
+    if (roleEl) roleEl.innerText = currentUser ? currentUser.role.toUpperCase() : "PROVINSI";
+
+    // Kosongkan unread counter
+    const unreadEl = document.getElementById("chat-unread-badge");
+    if (unreadEl) unreadEl.classList.add("hidden");
+
+    if (!box.classList.contains("hidden")) {
+      this.renderChatMessages();
+      setTimeout(() => {
+        const inputEl = document.getElementById("chat-input-text");
+        if (inputEl) inputEl.focus();
+      }, 100);
+    }
+  },
+
+  renderChatMessages() {
+    const feed = document.getElementById("chat-messages-feed");
+    if (!feed) return;
+
+    const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const myName = currentUser ? currentUser.username : "Dinkes Provinsi";
+
+    feed.innerHTML = this.chatMessages.map(m => {
+      const isMe = m.sender.includes(myName) || m.isMe;
+      return `
+        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="text-[10px] font-bold ${isMe ? 'text-emerald-800' : 'text-slate-700'}">${m.sender}</span>
+            <span class="text-[9px] px-1 py-0.2 rounded font-black ${m.role === 'PROVINSI' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}">${m.role || 'KAB'}</span>
+            <span class="text-[9px] text-slate-400">${m.time}</span>
+          </div>
+          <div class="max-w-[85%] p-2.5 rounded-2xl text-xs leading-relaxed shadow-2xs ${isMe ? 'bg-[#0F7A4F] text-white rounded-tr-none' : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'}">
+            ${m.text}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    feed.scrollTop = feed.scrollHeight;
+  },
+
+  sendChatMessage(event) {
+    if (event) event.preventDefault();
+    const input = document.getElementById("chat-input-text");
+    if (!input || !input.value.trim()) return;
+
+    const textVal = input.value.trim();
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const sender = user ? user.username : "Dinkes Provinsi";
+    const role = user ? user.role.toUpperCase() : "PROVINSI";
+    const region = user ? user.region : "Jawa Timur";
+
+    const newMsg = {
+      id: "msg-" + Date.now(),
+      sender: `${sender} (${region})`,
+      role: role,
+      region: region,
+      text: textVal,
+      time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
+      timestamp: Date.now(),
+      isMe: true
+    };
+
+    this.chatMessages.push(newMsg);
+    this.renderChatMessages();
+    input.value = "";
+
+    // Sinkronkan ke Cloud Firestore jika aktif
+    if (window.SIDIF_CLOUD && window.SIDIF_CLOUD.isOnline) {
+      window.SIDIF_CLOUD.sendChatMessageToCloud(newMsg);
+    }
+  },
+
+  receiveChatMessage(newMsg) {
+    if (!newMsg || !newMsg.id) return;
+    if (this.chatMessages.some(m => m.id === newMsg.id)) return;
+
+    this.chatMessages.push(newMsg);
+    const box = document.getElementById("chat-box");
+    if (box && !box.classList.contains("hidden")) {
+      this.renderChatMessages();
+    } else {
+      const badge = document.getElementById("chat-unread-badge");
+      if (badge) {
+        let count = parseInt(badge.innerText || "0", 10) + 1;
+        badge.innerText = count;
+        badge.classList.remove("hidden");
+      }
+    }
+
+    // Suara notifikasi
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.2);
+    } catch(e) {}
+  },
+
   setupEventListeners() {
     // Dropdown Pilihan Wilayah di Dashboard
     const regionSelect = document.getElementById("dashboard-region-select");
@@ -800,23 +1115,39 @@ window.SIDIF_APP = {
     const kontakEpiEl = document.getElementById("form-kontak-epi");
 
     const updateClassification = () => {
-      const kH = kulturHEl ? kulturHEl.value : "Pending";
-      const kT = kulturTEl ? kulturTEl.value : "Pending";
-      const kOverall = (kH === "Positif" || kT === "Positif") ? "Positif" : ((kH === "Negatif" && kT === "Negatif") ? "Negatif" : "Pending");
+      const kH = kulturHEl ? kulturHEl.value : "Tidak Periksa";
+      const kT = kulturTEl ? kulturTEl.value : "Tidak Periksa";
+      const tH = document.getElementById("form-tgl-ambil-hidung") ? document.getElementById("form-tgl-ambil-hidung").value : "";
+      const tT = document.getElementById("form-tgl-ambil-tenggorok") ? document.getElementById("form-tgl-ambil-tenggorok").value : "";
+      const kOverall = (kH === "Positif" || kT === "Positif") 
+        ? "Positif" 
+        : ((kH === "Negatif" && kT === "Negatif") 
+          ? "Negatif" 
+          : ((kH === "Pending" || kT === "Pending") ? "Pending" : "Tidak Periksa"));
 
       const res = window.SIDIF_FORMS.calculateClassification({
-        hasilKultur: kOverall,
-        toksigenitas: toksikEl ? toksikEl.value : "-",
-        pseudomembran: pseudoEl ? pseudoEl.checked : true,
-        demam: demamEl ? demamEl.checked : true,
-        bullneck: bullneckEl ? bullneckEl.checked : false,
-        hubunganEpidemiologi: kontakEpiEl ? kontakEpiEl.checked : false
+        hasilKulturHidung: kH,
+        hasilKulturTenggorok: kT,
+        tanggalAmbilHidung: tH,
+        tanggalAmbilTenggorok: tT,
+        hasilKultur: kOverall
       });
       const target = document.getElementById("form-calc-klasifikasi");
-      if (target) target.value = res.kategori;
+      if (target) {
+        target.value = res.kategori;
+        target.className = `w-full h-11 px-3 border rounded text-sm font-black transition ${
+          res.kategori === "Difteri Konfirmasi Lab" 
+            ? "bg-red-50 border-red-300 text-red-700" 
+            : res.kategori === "Pending"
+              ? "bg-blue-50 border-blue-300 text-blue-700"
+              : "bg-amber-50 border-amber-300 text-amber-700"
+        }`;
+      }
     };
 
-    [pseudoEl, demamEl, bullneckEl, kulturHEl, kulturTEl, toksikEl, kontakEpiEl].forEach(el => {
+    const tglHidungEl = document.getElementById("form-tgl-ambil-hidung");
+    const tglTenggorokEl = document.getElementById("form-tgl-ambil-tenggorok");
+    [pseudoEl, demamEl, bullneckEl, kulturHEl, kulturTEl, toksikEl, kontakEpiEl, tglHidungEl, tglTenggorokEl].forEach(el => {
       if (el) el.addEventListener("change", updateClassification);
     });
 
@@ -929,3 +1260,12 @@ window.handleSaveCloudConfig = function() {
 window.handleTestCloudConnection = function() {
   alert("Status Koneksi Cloud Firestore:\n" + (window.SIDIF_CLOUD.isOnline ? "TERHUBUNG KE GOOGLE CLOUD (" + window.FIREBASE_CONFIG.projectId + ")" : "MODE DATABASE LOKAL (Offline-First Ready)"));
 };
+
+// Tutup dropdown notifikasi saat klik di luar
+window.addEventListener("click", (e) => {
+  const container = document.getElementById("notification-container");
+  const dropdown = document.getElementById("notification-dropdown");
+  if (container && dropdown && !container.contains(e.target)) {
+    dropdown.classList.add("hidden");
+  }
+});

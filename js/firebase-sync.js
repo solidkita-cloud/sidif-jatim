@@ -99,6 +99,37 @@ window.SIDIF_CLOUD = {
     }, (error) => {
       console.error("Firestore listener error:", error);
     });
+
+    // Pasang Listener Real-Time untuk Ruang Koordinasi & Chat Tim Difteri
+    try {
+      const chatCol = this.db.collection("difteri_chat_2026").orderBy("timestamp", "asc").limitToLast(50);
+      chatCol.onSnapshot((snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const msg = change.doc.data();
+            if (window.SIDIF_APP && window.SIDIF_APP.receiveChatMessage) {
+              window.SIDIF_APP.receiveChatMessage(msg);
+            }
+          }
+        });
+      }, (err) => {
+        console.warn("Firestore chat listener warning:", err.message);
+      });
+    } catch (e) {
+      console.warn("Chat listener setup bypassed:", e);
+    }
+  },
+
+  // Kirim Pesan Koordinasi Chat ke Google Cloud Firestore
+  async sendChatMessageToCloud(msgObj) {
+    if (!this.db || !this.isOnline) return false;
+    try {
+      await this.db.collection("difteri_chat_2026").add(msgObj);
+      return true;
+    } catch (e) {
+      console.warn("Gagal mengirim pesan chat ke Cloud:", e);
+      return false;
+    }
   },
 
   // Simpan Kasus ke Cloud Firestore

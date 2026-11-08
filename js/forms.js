@@ -100,64 +100,61 @@ window.SIDIF_FORMS = {
     return diffHours <= 48 ? "< 48 Jam" : "> 48 Jam";
   },
 
-  // 6. Klasifikasi Otomatis Kasus Difteri Sesuai Juknis Kemenkes
+  // 6. Klasifikasi Kasus Difteri Sesuai Pedoman Resmi Surveilans Dinkes:
+  // 1. Hasil lab positif masuk kategori: Difteri Konfirmasi Lab
+  // 2. Hasil lab negatif masuk kategori: Kompatibel Klinis
+  // 3. Belum ada hasil lab tp ada spesimen yg diperiksa: Pending
+  // 4. Tidak ada hasil lab dan tidak periksa lab: Kompatibel Klinis
   calculateClassification(data) {
     const kulturH = data.hasilKulturHidung || "";
     const kulturT = data.hasilKulturTenggorok || "";
-    const kultur = data.hasilKultur || (kulturH === "Positif" || kulturT === "Positif" ? "Positif" : (kulturH === "Negatif" && kulturT === "Negatif" ? "Negatif" : "Pending"));
-    const toksik = data.toksigenitas || "";
-    const pseudo = !!data.pseudomembran;
-    const demam = !!data.demam;
-    const bullneck = !!data.bullneck;
-    const kontak = !!data.hubunganEpidemiologi;
+    const tglH = data.tanggalAmbilHidung || "";
+    const tglT = data.tanggalAmbilTenggorok || "";
+    const hasilK = data.hasilKultur || "";
+    
+    // Cek apakah ada spesimen yang pernah diambil / dalam proses
+    const hasSpecimen = (tglH && tglH !== "-") || (tglT && tglT !== "-") || kulturH === "Pending" || kulturT === "Pending" || hasilK === "Pending";
 
-    // A. Konfirmasi Lab: Kultur Positif dan Toksigenik
-    if (kultur === "Positif" && toksik === "Toksigenik") {
+    // 1. Hasil lab positif -> Difteri Konfirmasi Lab
+    if (kulturH === "Positif" || kulturT === "Positif" || hasilK === "Positif") {
       return {
-        kategori: "Konfirmasi Lab",
-        labelBadge: "KLB Konfirmasi Lab",
+        kategori: "Difteri Konfirmasi Lab",
+        labelBadge: "Difteri Konfirmasi Lab",
         isKlb: true,
-        penjelasan: "Ditemukan kuman C. diphtheriae toksigenik positif lewat uji kultur laboratorium BBLKM."
+        badgeClass: "bg-red-100 text-red-800 border-red-300",
+        penjelasan: "Ditemukan kuman C. diphtheriae positif lewat uji kultur laboratorium BBLKM."
       };
     }
 
-    // B. Kompatibel Klinis: Ada Pseudomembran DAN (Demam / Bullneck / Stridor), kultur negatif / pending
-    if (pseudo && (demam || bullneck)) {
-      if (kultur !== "Negatif") {
-        return {
-          kategori: "Kompatibel Klinis",
-          labelBadge: "Sinyal KLB (Kompatibel Klinis)",
-          isKlb: false,
-          penjelasan: "Memenuhi gejala klinis difteri (pseudomembran & demam/bullneck). Menunggu hasil lab definitif."
-        };
-      }
-    }
-
-    // C. Hubungan Epidemiologi
-    if ((demam || pseudo) && kontak) {
+    // 2. Hasil lab negatif -> Kompatibel Klinis
+    if ((kulturH === "Negatif" || kulturT === "Negatif" || hasilK === "Negatif") && kulturH !== "Positif" && kulturT !== "Positif") {
       return {
-        kategori: "Hubungan Epidemiologi",
-        labelBadge: "Hubungan Epidemiologi",
+        kategori: "Kompatibel Klinis",
+        labelBadge: "Kompatibel Klinis",
         isKlb: false,
-        penjelasan: "Gejala klinis dengan riwayat kontak erat kasus difteri positif."
+        badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
+        penjelasan: "Hasil kultur lab negatif, klasifikasi ditegakkan berdasarkan pemenuhan kriteria klinis difteri."
       };
     }
 
-    // D. Discarded (Bukan Difteri)
-    if (kultur === "Negatif" && !pseudo) {
+    // 3. Belum ada hasil lab tapi ada spesimen yang diperiksa -> Pending
+    if (kulturH === "Pending" || kulturT === "Pending" || hasilK === "Pending" || hasSpecimen) {
       return {
-        kategori: "Discarded",
-        labelBadge: "Bukan Difteri (Discarded)",
+        kategori: "Pending",
+        labelBadge: "Pending (Menunggu Hasil Lab)",
         isKlb: false,
-        penjelasan: "Hasil kultur laboratorium negatif dan kriteria klinis tidak terpenuhi."
+        badgeClass: "bg-blue-100 text-blue-800 border-blue-300",
+        penjelasan: "Spesimen usap telah diambil dan sedang dalam proses pemeriksaan kultur di laboratorium BBLKM."
       };
     }
 
+    // 4. Tidak ada hasil lab dan tidak periksa lab -> Kompatibel Klinis
     return {
-      kategori: "Suspek",
-      labelBadge: "Suspek Difteri",
+      kategori: "Kompatibel Klinis",
+      labelBadge: "Kompatibel Klinis",
       isKlb: false,
-      penjelasan: "Kasus suspek difteri dalam penyelidikan awal."
+      badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
+      penjelasan: "Tidak dilakukan pemeriksaan lab / spesimen tidak diambil, klasifikasi ditegakkan berdasarkan gejala klinis."
     };
   },
 
