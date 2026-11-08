@@ -124,6 +124,13 @@ input:focus, select:focus, textarea:focus {
     z-index: 99999 !important;
   }
 
+  #modal-pe .min-h-full {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: auto !important;
+  }
+
   #modal-pe * {
     visibility: visible !important;
   }

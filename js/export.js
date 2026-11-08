@@ -176,7 +176,20 @@ window.SIDIF_EXPORT = {
 
     // Tampilkan modal PE
     const modal = document.getElementById("modal-pe");
-    if (modal) modal.classList.remove("hidden");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.scrollTop = 0;
+      document.body.classList.add("overflow-hidden");
+    }
+  },
+
+  // Tutup Modal Form PE
+  closePeModal() {
+    const modal = document.getElementById("modal-pe");
+    if (modal) {
+      modal.classList.add("hidden");
+    }
+    document.body.classList.remove("overflow-hidden");
   },
 
   // Cetak Dokumen PE dengan Nama File Otomatis PE-xxxxxx
@@ -195,3 +208,13 @@ window.SIDIF_EXPORT = {
     }, 1500);
   }
 };
+
+// Event listener tombol Escape untuk menutup modal PE
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const modal = document.getElementById("modal-pe");
+    if (modal && !modal.classList.contains("hidden")) {
+      window.SIDIF_EXPORT.closePeModal();
+    }
+  }
+});
