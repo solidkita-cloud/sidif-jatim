@@ -144,6 +144,17 @@ window.SIDIF_EXPORT = {
       return;
     }
 
+    // CEK OTORISASI KEAMANAN DATA MEDIS (TENANT ISOLATION)
+    const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    if (currentUser && currentUser.role === "kabupaten") {
+      const normUserReg = currentUser.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
+      const normCaseReg = (c.kabupaten || "").replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
+      if (normUserReg !== normCaseReg) {
+        alert(`AKSES DITOLAK: Anda sedang masuk sebagai petugas ${currentUser.username} (${currentUser.region}).\n\nSesuai standar isolasi data medis, Anda hanya berwenang membuka dan mencetak Formulir Penyelidikan Epidemiologi (PE) untuk wilayah wewenang Anda: ${currentUser.region}.`);
+        return;
+      }
+    }
+
     const ageObj = window.SIDIF_FORMS.calculateAge(c.tanggalLahir, c.tanggalOnset);
     const cleanNo = (c.noEpid || "DIF-" + c.id).replace(/[\/\\\s]/g, "-");
 
@@ -174,6 +185,23 @@ window.SIDIF_EXPORT = {
     document.getElementById("pe-petugas").innerText = `${c.createdBy || "Petugas Surveilans"} (${c.kabupaten})`;
     document.getElementById("pe-tanggal-cetak").innerText = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
+    // Muat data penandatangan dinamis dari penyimpanan lokal atau default resmi
+    const savedSign = JSON.parse(localStorage.getItem("sidif_pe_signature_config") || "{}");
+    const pJabatan = savedSign.pejabatJabatan || "Kepala Bidang P2P Dinkes Provinsi";
+    const pNama = savedSign.pejabatNama || "dr. Sulvy Dwi Anggraini, M.Kes";
+    const pNip = savedSign.pejabatNip || "NIP. 19740512 200212 2 003";
+
+    const petInstansi = savedSign.petugasInstansi || `Dinas Kesehatan ${c.kabupaten}`;
+    const petNama = savedSign.petugasNama || (currentUser && currentUser.role === "kabupaten" ? `Petugas Surveilans ${c.kabupaten}` : "( Tanda Tangan & Nama Terang )");
+    const petNip = savedSign.petugasNip || `Petugas Surveilans PD3I ${c.kabupaten}`;
+
+    if (document.getElementById("pe-sign-pejabat-jabatan")) document.getElementById("pe-sign-pejabat-jabatan").innerText = pJabatan;
+    if (document.getElementById("pe-sign-pejabat-nama")) document.getElementById("pe-sign-pejabat-nama").innerText = pNama;
+    if (document.getElementById("pe-sign-pejabat-nip")) document.getElementById("pe-sign-pejabat-nip").innerText = pNip;
+    if (document.getElementById("pe-sign-petugas-instansi")) document.getElementById("pe-sign-petugas-instansi").innerText = petInstansi;
+    if (document.getElementById("pe-sign-petugas-nama")) document.getElementById("pe-sign-petugas-nama").innerText = petNama;
+    if (document.getElementById("pe-sign-petugas-nip")) document.getElementById("pe-sign-petugas-nip").innerText = petNip;
+
     // Tampilkan modal PE
     const modal = document.getElementById("modal-pe");
     if (modal) {
@@ -184,6 +212,51 @@ window.SIDIF_EXPORT = {
   },
 
   // Tutup Modal Form PE
+  
+  // Toggle Drawer Pengaturan Penandatangan Lembar PE
+  toggleSignatureEditor() {
+    const drawer = document.getElementById("pe-signature-editor-drawer");
+    if (!drawer) return;
+    drawer.classList.toggle("hidden");
+    if (!drawer.classList.contains("hidden")) {
+      const savedSign = JSON.parse(localStorage.getItem("sidif_pe_signature_config") || "{}");
+      if (document.getElementById("input-sign-pejabat-jab")) {
+        document.getElementById("input-sign-pejabat-jab").value = savedSign.pejabatJabatan || (document.getElementById("pe-sign-pejabat-jabatan") ? document.getElementById("pe-sign-pejabat-jabatan").innerText : "Kepala Bidang P2P Dinkes Provinsi");
+        document.getElementById("input-sign-pejabat-nama").value = savedSign.pejabatNama || (document.getElementById("pe-sign-pejabat-nama") ? document.getElementById("pe-sign-pejabat-nama").innerText : "dr. Sulvy Dwi Anggraini, M.Kes");
+        document.getElementById("input-sign-pejabat-nip").value = savedSign.pejabatNip || (document.getElementById("pe-sign-pejabat-nip") ? document.getElementById("pe-sign-pejabat-nip").innerText : "NIP. 19740512 200212 2 003");
+        
+        document.getElementById("input-sign-petugas-inst").value = savedSign.petugasInstansi || (document.getElementById("pe-sign-petugas-instansi") ? document.getElementById("pe-sign-petugas-instansi").innerText : "Dinas Kesehatan Kabupaten / Kota");
+        document.getElementById("input-sign-petugas-nama").value = savedSign.petugasNama || (document.getElementById("pe-sign-petugas-nama") ? document.getElementById("pe-sign-petugas-nama").innerText : "( Tanda Tangan & Nama Terang )");
+        document.getElementById("input-sign-petugas-nip").value = savedSign.petugasNip || (document.getElementById("pe-sign-petugas-nip") ? document.getElementById("pe-sign-petugas-nip").innerText : "Dinas Kesehatan");
+      }
+    }
+  },
+
+  // Simpan Konfigurasi Penandatangan ke LocalStorage
+  saveSignatureConfig() {
+    const config = {
+      pejabatJabatan: (document.getElementById("input-sign-pejabat-jab").value || "").trim(),
+      pejabatNama: (document.getElementById("input-sign-pejabat-nama").value || "").trim(),
+      pejabatNip: (document.getElementById("input-sign-pejabat-nip").value || "").trim(),
+      petugasInstansi: (document.getElementById("input-sign-petugas-inst").value || "").trim(),
+      petugasNama: (document.getElementById("input-sign-petugas-nama").value || "").trim(),
+      petugasNip: (document.getElementById("input-sign-petugas-nip").value || "").trim()
+    };
+
+    localStorage.setItem("sidif_pe_signature_config", JSON.stringify(config));
+
+    // Perbarui teks langsung di lembar dokumen PE
+    if (document.getElementById("pe-sign-pejabat-jabatan")) document.getElementById("pe-sign-pejabat-jabatan").innerText = config.pejabatJabatan;
+    if (document.getElementById("pe-sign-pejabat-nama")) document.getElementById("pe-sign-pejabat-nama").innerText = config.pejabatNama;
+    if (document.getElementById("pe-sign-pejabat-nip")) document.getElementById("pe-sign-pejabat-nip").innerText = config.pejabatNip;
+    if (document.getElementById("pe-sign-petugas-instansi")) document.getElementById("pe-sign-petugas-instansi").innerText = config.petugasInstansi;
+    if (document.getElementById("pe-sign-petugas-nama")) document.getElementById("pe-sign-petugas-nama").innerText = config.petugasNama;
+    if (document.getElementById("pe-sign-petugas-nip")) document.getElementById("pe-sign-petugas-nip").innerText = config.petugasNip;
+
+    document.getElementById("pe-signature-editor-drawer").classList.add("hidden");
+    alert("Format penandatangan lembar PE berhasil disimpan dan diperbarui.");
+  },
+
   closePeModal() {
     const modal = document.getElementById("modal-pe");
     if (modal) {

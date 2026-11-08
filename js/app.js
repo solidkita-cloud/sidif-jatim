@@ -100,6 +100,13 @@ window.SIDIF_APP = {
       if (navWorklist) navWorklist.classList.add("hidden");
       if (navAdmin) navAdmin.classList.add("hidden");
     }
+
+    // Segarkan data dan notifikasi sesuai hak akses akun
+    this.renderNotifications();
+    this.renderTableData();
+    if (this.activeView === "dashboard") {
+      this.applyDashboardFilters();
+    }
   },
 
   // Setup Form Input Sesuai Hak Akses (Tenant Isolation)
@@ -168,11 +175,28 @@ window.SIDIF_APP = {
 
   // Terapkan Filter Wilayah (Default Jawa Timur / Per Kab-Kota), Tahun & Bulan ke Dashboard
   applyDashboardFilters() {
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const isKabupaten = user && user.role === "kabupaten";
+
     const regionSelectEl = document.getElementById("dashboard-region-select");
     const filterTahunEl = document.getElementById("filter-tahun");
     const filterBulanEl = document.getElementById("filter-bulan");
 
-    const selectedRegion = regionSelectEl ? regionSelectEl.value : "Jawa Timur";
+    if (regionSelectEl) {
+      if (isKabupaten) {
+        const cleanReg = user.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim();
+        regionSelectEl.value = cleanReg;
+        regionSelectEl.disabled = true;
+        regionSelectEl.classList.add("bg-slate-100", "cursor-not-allowed");
+        regionSelectEl.title = `Terkunci: Dashboard menampilkan wilayah wewenang Anda: ${user.region}`;
+      } else {
+        regionSelectEl.disabled = false;
+        regionSelectEl.classList.remove("bg-slate-100", "cursor-not-allowed");
+        regionSelectEl.title = "Pilih Wilayah Pantauan";
+      }
+    }
+
+    const selectedRegion = isKabupaten ? user.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim() : (regionSelectEl ? regionSelectEl.value : "Jawa Timur");
     const selectedYear = filterTahunEl ? filterTahunEl.value : "2026";
     const selectedMonth = filterBulanEl ? filterBulanEl.value : "all";
 
@@ -366,9 +390,27 @@ window.SIDIF_APP = {
     const tbody = document.getElementById("table-cases-body");
     if (!tbody) return;
 
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const isKabupaten = user && user.role === "kabupaten";
+
     const filterRegionEl = document.getElementById("table-filter-region");
     const searchInputEl = document.getElementById("table-search-input");
     const pageSizeEl = document.getElementById("table-page-size");
+
+    // Jika akun Kabupaten: Kunci dropdown filter tabel ke kabupatennya sendiri
+    if (filterRegionEl) {
+      if (isKabupaten) {
+        const cleanReg = user.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim();
+        filterRegionEl.value = cleanReg;
+        filterRegionEl.disabled = true;
+        filterRegionEl.classList.add("bg-slate-100", "cursor-not-allowed");
+        filterRegionEl.title = `Terkunci: Anda hanya berwenang mengakses data rekap ${user.region}`;
+      } else {
+        filterRegionEl.disabled = false;
+        filterRegionEl.classList.remove("bg-slate-100", "cursor-not-allowed");
+        filterRegionEl.title = "Filter Wilayah Kasus";
+      }
+    }
 
     const selRegion = filterRegionEl ? filterRegionEl.value : "all";
     const query = searchInputEl ? searchInputEl.value.trim().toLowerCase() : "";
@@ -376,8 +418,14 @@ window.SIDIF_APP = {
 
     let cases = window.SIDIF_STORE.getCases();
 
-    // Filter Wilayah
-    if (selRegion !== "all") {
+    // ISOLASI WILAYAH KABUPATEN PADA TABEL (ANTI-INTIP DAERAH LAIN)
+    if (isKabupaten) {
+      const normUser = user.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
+      cases = cases.filter(c => {
+        const normCase = (c.kabupaten || "").replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
+        return normCase === normUser;
+      });
+    } else if (selRegion !== "all") {
       cases = cases.filter(c => c.kabupaten === selRegion || c.kabupaten === "Kabupaten " + selRegion || c.kabupaten === "Kota " + selRegion);
     }
 
@@ -691,6 +739,18 @@ window.SIDIF_APP = {
 
   // Notifikasi Real-time Audio Chime & Floating Toast
   triggerRealtimeNotification(newCase) {
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const isKabupaten = user && user.role === "kabupaten";
+
+    // Jika akun Kabupaten, jangan bunyikan alarm jika kasus baru berasal dari kabupaten lain
+    if (isKabupaten) {
+      const normUser = user.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
+      const normCase = (newCase.kabupaten || "").replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
+      if (normUser !== normCase) {
+        return;
+      }
+    }
+
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = audioCtx.createOscillator();
@@ -846,7 +906,20 @@ window.SIDIF_APP = {
     const counterEl = document.getElementById("bell-counter");
     if (!container) return;
 
-    const unreadCount = this.notifications.filter(n => !n.read).length;
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const isKabupaten = user && user.role === "kabupaten";
+    const normUserReg = isKabupaten ? user.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase() : "";
+
+    // ISOLASI NOTIFIKASI:
+    // Akun Kabupaten HANYA melihat notifikasi wilayahnya sendiri atau broadcast dari Provinsi.
+    // Akun Provinsi / Super Admin melihat seluruh notifikasi dari 38 Kab/Kota.
+    const visibleNotifications = this.notifications.filter(n => {
+      if (!isKabupaten) return true;
+      const normNotifReg = (n.region || "").replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
+      return normNotifReg === normUserReg || normNotifReg === "jawa timur" || normNotifReg === "provinsi";
+    });
+
+    const unreadCount = visibleNotifications.filter(n => !n.read).length;
     if (counterEl) {
       if (unreadCount > 0) {
         counterEl.innerText = unreadCount;
@@ -856,12 +929,12 @@ window.SIDIF_APP = {
       }
     }
 
-    if (this.notifications.length === 0) {
-      container.innerHTML = '<div class="p-6 text-center text-slate-400">Tidak ada notifikasi baru saat ini.</div>';
+    if (visibleNotifications.length === 0) {
+      container.innerHTML = `<div class="p-6 text-center text-slate-400">Tidak ada notifikasi aktif untuk wilayah ${isKabupaten ? user.region : 'Jawa Timur'}.</div>`;
       return;
     }
 
-    container.innerHTML = this.notifications.map(n => `
+    container.innerHTML = visibleNotifications.map(n => `
       <div class="p-3 hover:bg-slate-50 transition cursor-pointer ${n.read ? 'opacity-70 bg-white' : 'bg-emerald-50/40'}" onclick="window.SIDIF_APP.openNotificationItem('${n.id}')">
         <div class="flex items-start justify-between gap-2">
           <div class="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
