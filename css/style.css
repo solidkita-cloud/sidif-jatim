@@ -1,0 +1,160 @@
+/* SIDIF JAWA TIMUR - OFFICIAL ANTI-AI HEALTHCARE STYLESHEET */
+:root {
+  --primary: #0F7A4F;
+  --primary-dark: #0A5A39;
+  --primary-light: #E6F4EA;
+  --accent-green: #15803D;
+  --danger: #D32F2F;
+  --danger-light: #FEE2E2;
+  --warning: #F59E0B;
+  --warning-light: #FEF3C7;
+  --surface: #FFFFFF;
+  --background: #F8FAFC;
+  --text-main: #0F172A;
+  --text-muted: #475569;
+  --border-color: #E2E8F0;
+  --blue-male: #2563EB;
+  --pink-female: #DB2777;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text-main);
+  background-color: var(--background);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessibility Font Scalers for Users Aged 40+ */
+body.font-mode-lg {
+  font-size: 18px;
+}
+body.font-mode-lg input, body.font-mode-lg select, body.font-mode-lg textarea {
+  font-size: 18px;
+}
+body.font-mode-xl {
+  font-size: 20px;
+}
+body.font-mode-xl input, body.font-mode-xl select, body.font-mode-xl textarea {
+  font-size: 20px;
+}
+
+/* Mandatory Field Styling (Penandaan Kolom Wajib Isi) */
+.field-mandatory {
+  background-color: #FFFBEB !important;
+  border-color: #F59E0B !important;
+}
+.field-mandatory:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(15, 122, 79, 0.2) !important;
+}
+
+/* Map Striped Alerts */
+.map-striped-alert {
+  background: repeating-linear-gradient(45deg, #FEE2E2, #FEE2E2 10px, #FCA5A5 10px, #FCA5A5 20px);
+}
+
+/* High Contrast Touch Friendly Controls */
+button, select, input {
+  min-height: 48px;
+}
+
+/* Clean Form Focus */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 122, 79, 0.15);
+}
+
+/* Gender Selection Styles */
+.gender-male-selected {
+  border-color: var(--blue-male) !important;
+  background-color: #EFF6FF !important;
+}
+.gender-female-selected {
+  border-color: var(--pink-female) !important;
+  background-color: #FDF2F8 !important;
+}
+
+/* Form PE Print Layout (Official Standard - HANYA DOKUMEN PE SAJA YANG TERCETAK) */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 15mm 12mm 15mm;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Sembunyikan SEMUA elemen website selain modal PE */
+  #main-app-container,
+  header,
+  nav,
+  main,
+  footer,
+  .app-view,
+  .no-print,
+  #realtime-toast,
+  #modal-anti-dobel,
+  #modal-confirm-submit {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Tampilkan hanya Modal Form PE sebagai dokumen halaman penuh */
+  #modal-pe {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    background: transparent !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    inset: auto !important;
+    z-index: 99999 !important;
+  }
+
+  #modal-pe * {
+    visibility: visible !important;
+  }
+
+  #modal-pe .no-print,
+  #modal-pe button {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .pe-document-view {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-top: none !important;
+  }
+
+  .pe-document-view h3 {
+    font-size: 14pt !important;
+  }
+
+  .pe-document-view p,
+  .pe-document-view span,
+  .pe-document-view td {
+    font-size: 10pt !important;
+  }
+}
