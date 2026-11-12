@@ -146,10 +146,10 @@ window.SIDIF_EXPORT = {
 
     // CEK OTORISASI KEAMANAN DATA MEDIS (TENANT ISOLATION)
     const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
-    if (currentUser && currentUser.role === "kabupaten") {
-      const normUserReg = currentUser.region.replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
-      const normCaseReg = (c.kabupaten || "").replace(/^(Kabupaten|Kota)\s+/i, "").trim().toLowerCase();
-      if (normUserReg !== normCaseReg) {
+    const isRegionalUser = currentUser && (currentUser.type === "kabupaten" || currentUser.type === "kota" || currentUser.role === "operator");
+    if (isRegionalUser) {
+      const normExact = (s) => (s || "").trim().toLowerCase().replace(/^kab\.\s*/i, "kabupaten ");
+      if (normExact(currentUser.region) !== normExact(c.kabupaten)) {
         alert(`AKSES DITOLAK: Anda sedang masuk sebagai petugas ${currentUser.username} (${currentUser.region}).\n\nSesuai standar isolasi data medis, Anda hanya berwenang membuka dan mencetak Formulir Penyelidikan Epidemiologi (PE) untuk wilayah wewenang Anda: ${currentUser.region}.`);
         return;
       }
@@ -182,7 +182,8 @@ window.SIDIF_EXPORT = {
     document.getElementById("pe-tatalaksana").innerText = `Antibiotik: ${c.antibiotik || "Ya"} | ADS: ${c.adsDiberikan ? "Diberikan (" + (c.adsDosis || 0) + " IU)" : "Tidak Diberikan"}`;
     document.getElementById("pe-kontak").innerText = `Kontak Serumah: ${c.kontakRumah || c.kontakEratRumah || 0} Orang | Diberi Profilaksis: ${c.profilaksisRumah || c.kontakEratProfilaksis || 0} Orang`;
     document.getElementById("pe-keadaan").innerText = c.keadaanAkhir || "Hidup / Sembuh";
-    document.getElementById("pe-petugas").innerText = `${c.createdBy || "Petugas Surveilans"} (${c.kabupaten})`;
+    const elPePetugas = document.getElementById("pe-petugas");
+    if (elPePetugas) elPePetugas.innerText = `${c.createdBy || "Petugas Surveilans"} (${c.kabupaten})`;
     document.getElementById("pe-tanggal-cetak").innerText = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
     // Muat data penandatangan dinamis dari penyimpanan lokal atau default resmi
@@ -192,7 +193,7 @@ window.SIDIF_EXPORT = {
     const pNip = savedSign.pejabatNip || "NIP. 19740512 200212 2 003";
 
     const petInstansi = savedSign.petugasInstansi || `Dinas Kesehatan ${c.kabupaten}`;
-    const petNama = savedSign.petugasNama || (currentUser && currentUser.role === "kabupaten" ? `Petugas Surveilans ${c.kabupaten}` : "( Tanda Tangan & Nama Terang )");
+    const petNama = savedSign.petugasNama || (isRegionalUser ? `Petugas Surveilans ${c.kabupaten}` : "( Tanda Tangan & Nama Terang )");
     const petNip = savedSign.petugasNip || `Petugas Surveilans PD3I ${c.kabupaten}`;
 
     if (document.getElementById("pe-sign-pejabat-jabatan")) document.getElementById("pe-sign-pejabat-jabatan").innerText = pJabatan;
