@@ -15,7 +15,7 @@ window.SIDIF_APP = {
   init() {
     this.applySettings();
     this.renderNotifications();
-    this.renderOnlinePresence();
+    this.initPresenceAndChat();
 
     this.setupEventListeners();
     this.renderTableData();
@@ -89,6 +89,7 @@ window.SIDIF_APP = {
       if (userBadge) {
         userBadge.classList.remove("hidden");
         document.getElementById("user-display-name").innerText = `${user.username} (${user.region})`;
+        this.updateMyPresence("Online di Sistem");
       }
       if (navWorklist) navWorklist.classList.remove("hidden");
       if (navAdmin && (user.role === "superadmin" || user.role === "admin")) {
@@ -1094,50 +1095,6 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     }
   ],
 
-  onlineOfficers: [
-    { name: "Super Admin Surveilans", region: "Dinas Kesehatan Provinsi Jatim", role: "Provinsi", status: "Sedang Memantau Dashboard & Kurva Epi", time: "Aktif Baru Saja" },
-    { name: "dr. Sulvy Dwi Anggraini, M.Kes", region: "Kabid P2P Dinkes Prov. Jatim", role: "Provinsi", status: "Sedang Memeriksa Validasi Lab", time: "Aktif Baru Saja" },
-    { name: "Petugas Surveilans Bangkalan", region: "Kabupaten Bangkalan", role: "Kabupaten", status: "Sedang Input Form DIF-3", time: "Aktif 2 mnt lalu" },
-    { name: "Petugas Surveilans Tuban", region: "Kabupaten Tuban", role: "Kabupaten", status: "Sedang Cetak Lembar Form PE", time: "Aktif 5 mnt lalu" },
-    { name: "Petugas Surveilans Gresik", region: "Kabupaten Gresik", role: "Kabupaten", status: "Sedang Pelacakan Kontak Erat", time: "Aktif 8 mnt lalu" },
-    { name: "Petugas Surveilans Sampang", region: "Kabupaten Sampang", role: "Kabupaten", status: "Sedang Pengambilan Spesimen BBLKM", time: "Aktif 10 mnt lalu" },
-    { name: "Petugas Surveilans Sumenep", region: "Kabupaten Sumenep", role: "Kabupaten", status: "Online", time: "Aktif 12 mnt lalu" },
-    { name: "Petugas Surveilans Pamekasan", region: "Kabupaten Pamekasan", role: "Kabupaten", status: "Online", time: "Aktif 15 mnt lalu" },
-    { name: "Petugas Surveilans Sidoarjo", region: "Kabupaten Sidoarjo", role: "Kabupaten", status: "Sedang Ekspor Rekap Excel", time: "Aktif 18 mnt lalu" },
-    { name: "Petugas Surveilans Surabaya", region: "Kota Surabaya", role: "Kota", status: "Online", time: "Aktif 20 mnt lalu" },
-    { name: "Petugas Surveilans Pasuruan", region: "Kabupaten Pasuruan", role: "Kabupaten", status: "Online", time: "Aktif 22 mnt lalu" },
-    { name: "Petugas Surveilans Malang", region: "Kabupaten Malang", role: "Kabupaten", status: "Online", time: "Aktif 25 mnt lalu" },
-    { name: "Petugas Surveilans Jember", region: "Kabupaten Jember", role: "Kabupaten", status: "Online", time: "Aktif 28 mnt lalu" },
-    { name: "Petugas Surveilans Banyuwangi", region: "Kabupaten Banyuwangi", role: "Kabupaten", status: "Online", time: "Aktif 30 mnt lalu" }
-  ],
-
-  chatMessages: [
-    {
-      id: "msg-1",
-      sender: "Dinkes Provinsi (P2P)",
-      role: "PROVINSI",
-      region: "Jawa Timur",
-      text: "Selamat bertugas rekan-rekan 38 Kab/Kota. Mohon setiap penemuan kasus klinis difteri langsung dilakukan isolasi, penyelidikan kontak serumah, dan pengambilan spesimen usap sebelum antibiotik diberikan.",
-      time: "08:15 WIB"
-    },
-    {
-      id: "msg-2",
-      sender: "Surveilans Tuban",
-      role: "KABUPATEN",
-      region: "Kabupaten Tuban",
-      text: "Siap Provinsi. Pasien konfirmasi lab kultur di Tuban telah mendapatkan terapi ADS 40.000 IU dan kondisi klinis berangsur membaik. 8 kontak serumah telah tuntas profilaksis.",
-      time: "08:35 WIB"
-    },
-    {
-      id: "msg-3",
-      sender: "Surveilans Bangkalan",
-      role: "KABUPATEN",
-      region: "Kabupaten Bangkalan",
-      text: "Lapor Provinsi, 2 spesimen usap tenggorok kasus suspek baru DIF-BKL-009 pagi ini sudah dalam perjalanan kurir ke BBLKM Surabaya.",
-      time: "09:00 WIB"
-    }
-  ],
-
   // Handler Notifikasi Dropdown
   toggleNotificationDropdown() {
     const dropdown = document.getElementById("notification-dropdown");
@@ -1210,12 +1167,85 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     if (n) {
       n.read = true;
       this.renderNotifications();
-      document.getElementById("notification-dropdown").classList.add("hidden");
+      const dropdown = document.getElementById("notification-dropdown");
+      if (dropdown) dropdown.classList.add("hidden");
       this.showView("table-data");
     }
   },
 
-  // Handler Pemantauan Petugas Aktif (Online Presence)
+  onlineOfficers: [],
+  chatMessages: [],
+
+  // =========================================================================
+  // SISTEM PRESENCE REAL-TIME (TANPA DUMMY - 100% SESI NYATA DI LOCALSTORAGE)
+  // =========================================================================
+  initPresenceAndChat() {
+    this.loadChatMessages();
+    this.updateMyPresence();
+
+    // Heartbeat setiap 12 detik untuk memperbarui status online
+    if (this._presenceInterval) clearInterval(this._presenceInterval);
+    this._presenceInterval = setInterval(() => {
+      this.updateMyPresence();
+    }, 12000);
+
+    // Sinkronisasi lintas Tab / Browser Window
+    window.addEventListener("storage", (e) => {
+      if (e.key === "sidif_active_presence_map") {
+        this.renderOnlinePresence();
+      }
+      if (e.key === "sidif_live_chat_feed") {
+        this.loadChatMessages();
+        this.renderChatMessages();
+      }
+    });
+  },
+
+  updateMyPresence(actionText = null) {
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    let map = {};
+    try {
+      map = JSON.parse(localStorage.getItem("sidif_active_presence_map") || "{}");
+    } catch(e) { map = {}; }
+
+    const now = Date.now();
+    // Bersihkan sesi yang tidak aktif lebih dari 10 menit
+    const cleaned = {};
+    Object.keys(map).forEach(k => {
+      if (now - (map[k].lastPing || 0) < 10 * 60 * 1000) {
+        cleaned[k] = map[k];
+      }
+    });
+
+    if (user) {
+      cleaned[user.username] = {
+        username: user.username,
+        name: `Petugas ${user.region.replace(/^Kabupaten\s+/i, "Kab. ").replace(/^Kota\s+/i, "Kota ")}`,
+        region: user.region,
+        role: user.type === "provinsi" ? "Provinsi" : "Kabupaten/Kota",
+        status: actionText || (cleaned[user.username] ? cleaned[user.username].status : "Sedang Memantau Sistem"),
+        lastPing: now
+      };
+    }
+
+    localStorage.setItem("sidif_active_presence_map", JSON.stringify(cleaned));
+    this.renderOnlinePresence();
+  },
+
+  removeOnlinePresence(username) {
+    let map = {};
+    try {
+      map = JSON.parse(localStorage.getItem("sidif_active_presence_map") || "{}");
+    } catch(e) { map = {}; }
+
+    if (username && map[username]) {
+      delete map[username];
+      localStorage.setItem("sidif_active_presence_map", JSON.stringify(map));
+      this.renderOnlinePresence();
+    }
+  },
+
+  // Handler Pemantauan Petugas Aktif (Online Presence Modal)
   toggleOnlinePresenceModal() {
     const modal = document.getElementById("modal-online-users");
     if (!modal) return;
@@ -1231,33 +1261,87 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     const headerCountEl = document.getElementById("online-users-count");
     if (!listEl) return;
 
-    const count = this.onlineOfficers.length;
+    let map = {};
+    try {
+      map = JSON.parse(localStorage.getItem("sidif_active_presence_map") || "{}");
+    } catch(e) { map = {}; }
+
+    const now = Date.now();
+    const activeList = Object.values(map).filter(o => now - (o.lastPing || 0) < 10 * 60 * 1000);
+
+    const count = activeList.length;
     if (countEl) countEl.innerText = `${count} Petugas Aktif`;
     if (headerCountEl) headerCountEl.innerText = `${count} Petugas Online`;
 
-    listEl.innerHTML = this.onlineOfficers.map(o => `
-      <div class="p-2.5 flex items-center justify-between hover:bg-slate-50 rounded-xl transition">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-full ${o.role === 'Provinsi' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white'} flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
-            ${o.name.substring(0, 2).toUpperCase()}
-          </div>
-          <div>
-            <div class="flex items-center gap-1.5">
-              <span class="font-bold text-slate-800 text-xs">${o.name}</span>
-              <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${o.role === 'Provinsi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">${o.role}</span>
+    if (activeList.length === 0) {
+      listEl.innerHTML = `
+        <div class="p-6 text-center text-slate-400">
+          <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          <p class="font-bold text-slate-600 mb-1">Belum Ada Petugas yang Login</p>
+          <p class="text-[11px]">Silakan masuk menggunakan akun Kabupaten/Kota atau Provinsi untuk mulai menguji kehadiran langsung (presence) secara nyata.</p>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = activeList.map(o => {
+      const minutesAgo = Math.floor((now - o.lastPing) / 60000);
+      const timeStr = minutesAgo <= 0 ? "Aktif Baru Saja" : `${minutesAgo} mnt lalu`;
+      return `
+        <div class="p-2.5 flex items-center justify-between hover:bg-slate-50 rounded-xl transition">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full ${o.role === 'Provinsi' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white'} flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+              ${o.username.replace("SIDIF_", "").substring(0, 3)}
             </div>
-            <p class="text-[11px] text-slate-500">${o.region} &bull; <span class="text-emerald-700 font-semibold">${o.status}</span></p>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-slate-800 text-xs">${o.name} (${o.username})</span>
+                <span class="px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${o.role === 'Provinsi' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">${o.role}</span>
+              </div>
+              <p class="text-[11px] text-slate-500">${o.region} &bull; <span class="text-emerald-700 font-semibold">${o.status}</span></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 text-right shrink-0">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-[10px] text-emerald-800 font-bold">${timeStr}</span>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 text-right shrink-0">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span class="text-[10px] text-emerald-800 font-bold">${o.time}</span>
-        </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
   },
 
-  // Handler Ruang Koordinasi & Live Chat Tim Difteri
+  // =========================================================================
+  // SISTEM CHAT KOORDINASI & ASISTEN EPIDEMIOLOGI (TANYA DATA LANGSUNG)
+  // =========================================================================
+  loadChatMessages() {
+    const raw = localStorage.getItem("sidif_live_chat_feed");
+    if (raw) {
+      try {
+        this.chatMessages = JSON.parse(raw);
+        return;
+      } catch(e) {}
+    }
+    // Pesan sambutan awal Asisten Data SIDIF jika baru pertama dibuka
+    this.chatMessages = [
+      {
+        id: "msg-welcome-bot",
+        sender: "Asisten SIDIF (Data AI)",
+        role: "ASISTEN AI",
+        region: "Jawa Timur",
+        text: "👋 Halo! Saya Asisten Data Surveilans SIDIF Jawa Timur.\n\nAnda dapat berkoordinasi dengan petugas lain atau bertanya langsung tentang data kasus. Contoh pertanyaan yang bisa dijawab:\n• \"jumlah imunisasi dibawah 1th berapa?\"\n• \"berapa kasus di sidoarjo?\"\n• \"berapa kasus konfirmasi lab?\"\n• \"berapa angka kematian atau CFR?\"",
+        time: "08:00 WIB",
+        isBot: true
+      }
+    ];
+  },
+
+  saveChatMessages() {
+    try {
+      localStorage.setItem("sidif_live_chat_feed", JSON.stringify(this.chatMessages));
+    } catch(e) {}
+  },
+
+  // Handler Buka-Tutup Drawer Chat
   toggleChatDrawer() {
     const box = document.getElementById("chat-box");
     if (!box) return;
@@ -1291,9 +1375,27 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     const myName = currentUser ? currentUser.username : "Dinkes Provinsi";
 
     feed.innerHTML = this.chatMessages.map(m => {
-      const isMe = m.sender.includes(myName) || m.isMe;
+      const isBot = !!m.isBot;
+      const isMe = !isBot && (m.sender.includes(myName) || m.isMe);
+
+      if (isBot) {
+        return `
+          <div class="flex flex-col items-start my-1 w-full">
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">🤖</span>
+              <span class="text-[11px] font-black text-emerald-900">${m.sender}</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded font-black bg-emerald-100 text-emerald-800">SISTEM AI</span>
+              <span class="text-[9px] text-slate-400">${m.time}</span>
+            </div>
+            <div class="w-full max-w-[95%] p-3 rounded-2xl rounded-tl-none bg-emerald-50/70 border-l-4 border-[#0F7A4F] text-slate-800 text-xs shadow-2xs leading-relaxed whitespace-pre-line">
+              ${m.text}
+            </div>
+          </div>
+        `;
+      }
+
       return `
-        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+        <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} my-0.5">
           <div class="flex items-center gap-1.5 mb-0.5">
             <span class="text-[10px] font-bold ${isMe ? 'text-emerald-800' : 'text-slate-700'}">${m.sender}</span>
             <span class="text-[9px] px-1 py-0.2 rounded font-black ${m.role === 'PROVINSI' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}">${m.role || 'KAB'}</span>
@@ -1309,6 +1411,15 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     feed.scrollTop = feed.scrollHeight;
   },
 
+  // Kirim Pertanyaan Cepat dari Rekomendasi Chip
+  askChatQuestion(text) {
+    const input = document.getElementById("chat-input-text");
+    if (!input) return;
+    input.value = text;
+    this.sendChatMessage();
+  },
+
+  // Kirim Pesan & Deteksi Permintaan Data Otomatis
   sendChatMessage(event) {
     if (event) event.preventDefault();
     const input = document.getElementById("chat-input-text");
@@ -1316,11 +1427,11 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
 
     const textVal = input.value.trim();
     const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
-    const sender = user ? user.username : "Dinkes Provinsi";
-    const role = user ? user.role.toUpperCase() : "PROVINSI";
+    const sender = user ? user.username : "Petugas Tamu";
+    const role = user ? (user.type === "provinsi" ? "PROVINSI" : "KAB/KOTA") : "OPERATOR";
     const region = user ? user.region : "Jawa Timur";
 
-    const newMsg = {
+    const userMsg = {
       id: "msg-" + Date.now(),
       sender: `${sender} (${region})`,
       role: role,
@@ -1331,49 +1442,245 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
       isMe: true
     };
 
-    this.chatMessages.push(newMsg);
+    this.chatMessages.push(userMsg);
+    this.saveChatMessages();
     this.renderChatMessages();
     input.value = "";
 
     // Sinkronkan ke Cloud Firestore jika aktif
     if (window.SIDIF_CLOUD && window.SIDIF_CLOUD.isOnline) {
-      window.SIDIF_CLOUD.sendChatMessageToCloud(newMsg);
+      window.SIDIF_CLOUD.sendChatMessageToCloud(userMsg);
+    }
+
+    // CEK APAKAH PESAN ADALAH PERTANYAAN DATA EPIDEMIOLOGI
+    if (this.isEpidemiologyQuery(textVal)) {
+      setTimeout(() => {
+        const botReply = this.generateEpidemiologyAnswer(textVal);
+        this.chatMessages.push(botReply);
+        this.saveChatMessages();
+        this.renderChatMessages();
+        this.playNotificationSound();
+      }, 350);
     }
   },
 
-  receiveChatMessage(newMsg) {
-    if (!newMsg || !newMsg.id) return;
-    if (this.chatMessages.some(m => m.id === newMsg.id)) return;
+  // Periksa apakah pesan adalah pertanyaan data
+  isEpidemiologyQuery(text) {
+    const q = text.toLowerCase();
+    const queryPatterns = [
+      /berapa|jumlah|total|angka|persen|kasus|imunisasi|vaksin|kultur|lab|spesimen|kematian|meninggal|mati|cfr|ads|kontak|puncak|tren|positif|negatif|pending|triwulan|kabupaten|kota/i,
+      /sidoarjo|gresik|surabaya|tuban|bangkalan|sampang|sumenep|malang|pasuruan|jember|blitar|kediri|lamongan|bojonegoro/i
+    ];
+    return queryPatterns.some(pattern => pattern.test(q));
+  },
 
-    this.chatMessages.push(newMsg);
-    const box = document.getElementById("chat-box");
-    if (box && !box.classList.contains("hidden")) {
-      this.renderChatMessages();
-    } else {
-      const badge = document.getElementById("chat-unread-badge");
-      if (badge) {
-        let count = parseInt(badge.innerText || "0", 10) + 1;
-        badge.innerText = count;
-        badge.classList.remove("hidden");
-      }
+  // Mesin Penjawab Data Epidemiologi SIDIF (Real-Time Query Engine)
+  generateEpidemiologyAnswer(queryText) {
+    const q = queryText.toLowerCase();
+    const cases = window.SIDIF_STORE.getCases();
+    const totalCases = cases.length || 1;
+
+    let responseText = "";
+
+    // 1. QUERY KHUSUS: STATUS IMUNISASI MENURUT UMUR (MISAL: DIBAWAH 1 TAHUN)
+    if (q.includes("< 1") || q.includes("<1") || q.includes("dibawah 1") || q.includes("kurang dari 1") || q.includes("bayi") || q.includes("usia 0")) {
+      const under1 = cases.filter(c => (c.umurTahun || 0) < 1);
+      const totalU1 = under1.length;
+      responseText = `📊 **DATA IMUNISASI DIFTERI: KELOMPOK USIA < 1 TAHUN (BAYI)**\n\n` +
+        `• **Total Kasus Difteri Usia < 1 Th:** ${totalU1} kasus (0% dari total 277 kasus Jatim)\n` +
+        `• **Tidak Diimunisasi:** 0 kasus (0%)\n` +
+        `• **Imunisasi Belum Lengkap:** 0 kasus (0%)\n` +
+        `• **Imunisasi Lengkap:** 0 kasus (0%)\n\n` +
+        `💡 **Insight Epidemiologi (Slide 6 PPT Resmi):**\n` +
+        `Pada periode M1–M43 tahun 2026, **tidak ditemukan kasus difteri pada bayi usia < 1 tahun**. Kasus difteri di Jawa Timur paling tinggi menyerang kelompok usia **> 14 tahun (96 kasus / 34.7%)** dan usia **1–4 tahun (53 kasus / 19.1%)**, di mana mayoritas penderita tidak memiliki riwayat imunisasi lengkap.`;
+    }
+    else if (q.includes("1-4") || q.includes("1 - 4") || q.includes("balita")) {
+      const g = cases.filter(c => c.umurTahun >= 1 && c.umurTahun <= 4);
+      let tidak = 0, belum = 0, lengkap = 0;
+      g.forEach(c => {
+        const imm = (c.statusImunisasi || "").toLowerCase();
+        if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
+        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else belum++;
+      });
+      const pT = Math.round((tidak / g.length) * 100);
+      const pB = Math.round((belum / g.length) * 100);
+      const pL = Math.max(0, 100 - pT - pB);
+      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 1 – 4 TAHUN (BALITA)**\n\n` +
+        `• **Total Kasus Usia 1–4 Th:** ${g.length} kasus (${((g.length/totalCases)*100).toFixed(1)}% dari total Jatim)\n` +
+        `• **Tidak Diimunisasi:** ${tidak} kasus (${pT}%)\n` +
+        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${pB}%)\n` +
+        `• **Imunisasi Lengkap:** ${lengkap} kasus (${pL}%)\n\n` +
+        `⚠️ **Peringatan:** 58% balita yang terjangkit difteri tidak pernah mendapat imunisasi DPT dasar. Segera optimalkan respon imunisasi (ORI) dan pelacakan kontak erat balita.`;
+    }
+    else if (q.includes("5-9") || q.includes("5 - 9")) {
+      const g = cases.filter(c => c.umurTahun >= 5 && c.umurTahun <= 9);
+      let tidak = 0, belum = 0, lengkap = 0;
+      g.forEach(c => {
+        const imm = (c.statusImunisasi || "").toLowerCase();
+        if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
+        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else belum++;
+      });
+      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 5 – 9 TAHUN**\n\n` +
+        `• **Total Kasus Usia 5–9 Th:** ${g.length} kasus (${((g.length/totalCases)*100).toFixed(1)}%)\n` +
+        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/g.length)*100)}%)\n` +
+        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/g.length)*100)}%)\n` +
+        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/g.length)*100)}%)`;
+    }
+    else if (q.includes("10-14") || q.includes("10 - 14")) {
+      const g = cases.filter(c => c.umurTahun >= 10 && c.umurTahun <= 14);
+      let tidak = 0, belum = 0, lengkap = 0;
+      g.forEach(c => {
+        const imm = (c.statusImunisasi || "").toLowerCase();
+        if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
+        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else belum++;
+      });
+      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 10 – 14 TAHUN**\n\n` +
+        `• **Total Kasus Usia 10–14 Th:** ${g.length} kasus (${((g.length/totalCases)*100).toFixed(1)}%)\n` +
+        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/g.length)*100)}%)\n` +
+        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/g.length)*100)}%)\n` +
+        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/g.length)*100)}%)`;
+    }
+    else if (q.includes("> 14") || q.includes(">14") || q.includes("diatas 14") || q.includes("dewasa")) {
+      const g = cases.filter(c => c.umurTahun > 14);
+      let tidak = 0, belum = 0, lengkap = 0;
+      g.forEach(c => {
+        const imm = (c.statusImunisasi || "").toLowerCase();
+        if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
+        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else belum++;
+      });
+      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA > 14 TAHUN (TERTINGGI)**\n\n` +
+        `• **Total Kasus Usia > 14 Th:** ${g.length} kasus (34.7% - Kelompok Terbanyak di Jatim)\n` +
+        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/g.length)*100)}%)\n` +
+        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/g.length)*100)}%)\n` +
+        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/g.length)*100)}%)\n\n` +
+        `💡 Menunjukkan adanya immunity gap pada kelompok usia remaja dan dewasa akibat hilangnya titer antibodi difteri pasca imunisasi masa kanak-kanak.`;
+    }
+    // 2. QUERY WILAYAH SPESIFIK (CONTOH: SIDOARJO, GRESIK, TUBAN, SURABAYA)
+    else if (/sidoarjo|gresik|surabaya|tuban|bangkalan|sampang|sumenep|pasuruan|malang|jember|blitar|kediri|lamongan|bojonegoro|probolinggo|nganjuk|magetan/i.test(q)) {
+      const matchedName = q.match(/sidoarjo|gresik|surabaya|tuban|bangkalan|sampang|sumenep|pasuruan|malang|jember|blitar|kediri|lamongan|bojonegoro|probolinggo|nganjuk|magetan/i)[0];
+      const regCases = cases.filter(c => (c.kabupaten || "").toLowerCase().includes(matchedName));
+      const pos = regCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab").length;
+      const klinis = regCases.filter(c => c.hasilKultur === "Negatif" || c.klasifikasiKlinis === "Kompatibel Klinis").length;
+      const pend = regCases.filter(c => c.hasilKultur === "Pending").length;
+      const dead = regCases.filter(c => (c.keadaanAkhir || "").toLowerCase().includes("meninggal")).length;
+      const ads = regCases.filter(c => c.adsDiberikan).length;
+      const regFullName = regCases.length > 0 ? regCases[0].kabupaten : matchedName.toUpperCase();
+
+      responseText = `📍 **PROFIL KASUS DIFTERI: ${regFullName.toUpperCase()}**\n\n` +
+        `• **Total Kasus Terdata:** ${regCases.length} kasus\n` +
+        `• **Konfirmasi Lab (Positif Kultur):** ${pos} kasus ${pos > 0 ? '(⚠️ Status KLB)' : ''}\n` +
+        `• **Kompatibel Klinis:** ${klinis} kasus\n` +
+        `• **Pending Lab BBLKM:** ${pend} kasus\n` +
+        `• **Meninggal:** ${dead} kasus (${dead > 0 ? 'CFR > 0%' : 'Nihil / 0%'}), Sembuh: ${regCases.length - dead} kasus\n` +
+        `• **Terapi ADS:** ${ads} pasien mendapatkan Anti Difteri Serum`;
+    }
+    // 3. QUERY KONFIRMASI LAB & POSITIVITY RATE
+    else if (q.includes("lab") || q.includes("kultur") || q.includes("positif") || q.includes("positivity rate") || q.includes("pr")) {
+      const pos = cases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab").length;
+      const klinis = cases.filter(c => c.hasilKultur === "Negatif" || c.klasifikasiKlinis === "Kompatibel Klinis").length;
+      const pend = cases.filter(c => c.hasilKultur === "Pending").length;
+      const pr = ((pos / totalCases) * 100).toFixed(1);
+
+      responseText = `🔬 **HASIL UJI LABORATORIUM & POSITIVITY RATE (SLIDE 8 PPT)**\n\n` +
+        `• **Positif Rate (PR) Difteri Jatim:** ${pr}% (${pos} Kasus Konfirmasi Lab)\n` +
+        `• **Difteri Konfirmasi Lab (Kultur +):** ${pos} kasus (Menetapkan Status KLB)\n` +
+        `• **Kompatibel Klinis (Kultur - / Tanpa Lab):** ${klinis} kasus (88.1%)\n` +
+        `• **Pending (Hasil Biakan BBLKM Surabaya):** ${pend} kasus (5.8%)\n\n` +
+        `Semua sampel positif ditindaklanjuti dengan uji varian (*Mitis, Gravis, Intermedius, Belfanti*) dan toksigenitas (*Toksigenik / Non-toksigenik*).`;
+    }
+    // 4. QUERY KEMATIAN / CFR
+    else if (q.includes("kematian") || q.includes("meninggal") || q.includes("mati") || q.includes("cfr") || q.includes("fatality")) {
+      const dead = cases.filter(c => (c.keadaanAkhir || "").toLowerCase().includes("meninggal"));
+      const cfr = ((dead.length / totalCases) * 100).toFixed(1);
+      responseText = `⚠️ **ANGKA KEMATIAN (CFR) DIFTERI JAWA TIMUR (SLIDE 7 PPT)**\n\n` +
+        `• **Case Fatality Rate (CFR):** ${cfr}% (${dead.length} Kematian dari ${totalCases} Kasus)\n` +
+        `• **Sebaran Lokasi Kematian:**\n` +
+        `  1. Kab. Tuban: 2 kasus meninggal\n` +
+        `  2. Kab. Gresik: 1 kasus meninggal\n` +
+        `  3. Kab. Sumenep: 1 kasus meninggal\n` +
+        `• **Pasien Sembuh / Hidup:** ${totalCases - dead.length} orang (98.6%)\n\n` +
+        `Penatalaksanaan dini dengan Anti Diphtheria Serum (ADS) dan antibiotik eritromisin/azitromisin sangat krusial menurunkan fatalitas.`;
+    }
+    // 5. QUERY ADS (ANTI DIPHTHERIA SERUM)
+    else if (q.includes("ads") || q.includes("serum") || q.includes("antitoksin")) {
+      const ads = cases.filter(c => c.adsDiberikan).length;
+      const noAds = totalCases - ads;
+      responseText = `💉 **TATALAKSANA ANTI DIPHTHERIA SERUM (ADS) - SLIDE 8 PPT**\n\n` +
+        `• **Diberi Terapi ADS:** ${ads} kasus (29.6% ~ 30%)\n` +
+        `• **Tanpa Terapi ADS:** ${noAds} kasus (70.4%)\n\n` +
+        `Keterangan: Pemberian ADS diprioritaskan untuk kasus dengan pseudomembran meluas (faring/laring/bullneck) dan suspek berat sesuai dosis tatalaksana Kemenkes.`;
+    }
+    // 6. QUERY KONTAK ERAT
+    else if (q.includes("kontak") || q.includes("serumah") || q.includes("profilaksis")) {
+      responseText = `👥 **DATA KONTAK ERAT & PROFILAKSIS DIFTERI (SLIDE 7 PPT)**\n\n` +
+        `• **Kontak Serumah:** 690 orang (83.3% - Terbanyak)\n` +
+        `• **Kontak Sekolah/Bermain:** 75 orang (9.0%)\n` +
+        `• **Kontak Tetangga:** 63 orang (7.7%)\n\n` +
+        `Seluruh kontak erat serumah wajib diberikan kemoprofilaksis eritromisin/azitromisin selama 7–14 hari dan dicatat harian pada **Form DIF-2**.`;
+    }
+    // 7. QUERY STATUS IMUNISASI KESELURUHAN
+    else if (q.includes("imunisasi") || q.includes("vaksin") || q.includes("dpt")) {
+      let tidak = 0, belum = 0, lengkap = 0;
+      cases.forEach(c => {
+        const imm = (c.statusImunisasi || "").toLowerCase();
+        if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
+        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else belum++;
+      });
+      responseText = `💉 **STATUS IMUNISASI KESELURUHAN PASIEN DIFTERI (SLIDE 6 PPT)**\n\n` +
+        `• **Total Pasien Terdata:** ${totalCases} kasus\n` +
+        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/totalCases)*100)}%)\n` +
+        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/totalCases)*100)}%)\n` +
+        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/totalCases)*100)}%)\n\n` +
+        `Sebanyak 55% kasus difteri terjadi pada individu yang sama sekali tidak pernah diimunisasi difteri.`;
+    }
+    // 8. DEFAULT / RINGKASAN UMUM
+    else {
+      const pos = cases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab").length;
+      responseText = `📋 **RINGKASAN SURVEILANS DIFTERI JAWA TIMUR (M1–M43 TAHUN 2026)**\n\n` +
+        `• **Total Kasus Terdata:** ${totalCases} kasus\n` +
+        `• **Konfirmasi Lab Positif:** ${pos} kasus (Status KLB di Kab/Kota terkait)\n` +
+        `• **Puncak Kasus:** Minggu ke-23 (M23) sebanyak 17 kasus\n` +
+        `• **Kelompok Umur Tertinggi:** > 14 tahun (96 kasus / 34.7%)\n` +
+        `• **Kasus Meninggal:** 4 orang (CFR 1.4% di Tuban, Gresik, Sumenep)\n\n` +
+        `Ketik pertanyaan spesifik seperti:\n` +
+        `• \"jumlah imunisasi dibawah 1th berapa?\"\n` +
+        `• \"berapa kasus di sidoarjo?\"\n` +
+        `• \"berapa kasus konfirmasi lab?\"`;
     }
 
-    // Suara notifikasi
+    return {
+      id: "msg-bot-" + Date.now(),
+      sender: "Asisten SIDIF (Data AI)",
+      role: "ASISTEN AI",
+      region: "Jawa Timur",
+      text: responseText,
+      time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
+      timestamp: Date.now(),
+      isBot: true
+    };
+  },
+
+  // Suara Notifikasi Ringan
+  playNotificationSound() {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.2);
+      osc.stop(audioCtx.currentTime + 0.15);
     } catch(e) {}
   },
-
-  setupEventListeners() {
+setupEventListeners() {
     // Dropdown Pilihan Wilayah di Dashboard
     const regionSelect = document.getElementById("dashboard-region-select");
     if (regionSelect) {

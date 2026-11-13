@@ -83,6 +83,9 @@ window.SIDIF_AUTH = {
 
     sessionStorage.setItem(AUTH_KEYS.CURRENT_USER, JSON.stringify(userSession));
     window.SIDIF_STORE.logAudit(acc.username, "LOGIN_SUCCESS", `Login berhasil untuk wilayah ${acc.region}`);
+    if (window.SIDIF_APP && window.SIDIF_APP.updateMyPresence) {
+      window.SIDIF_APP.updateMyPresence("Online Baru Saja");
+    }
 
     return {
       success: true,
@@ -107,6 +110,9 @@ window.SIDIF_AUTH = {
     const user = this.getCurrentUser();
     if (user) {
       window.SIDIF_STORE.logAudit(user.username, "LOGOUT", `Petugas keluar dari sistem`);
+      if (window.SIDIF_APP && window.SIDIF_APP.removeOnlinePresence) {
+        window.SIDIF_APP.removeOnlinePresence(user.username);
+      }
     }
     sessionStorage.removeItem(AUTH_KEYS.CURRENT_USER);
   },
