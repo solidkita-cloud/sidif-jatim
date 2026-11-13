@@ -10,6 +10,7 @@ window.SIDIF_CHARTS = {
   donutChart: null,
   ageChart: null,
   genderChart: null,
+  stackedImunisasiChart: null,
 
   init() {
     this.renderAllCharts();
@@ -18,6 +19,7 @@ window.SIDIF_CHARTS = {
   renderAllCharts(filteredCases = null) {
     const cases = filteredCases || window.SIDIF_STORE.getCases({ statusAdmin: "Terverifikasi" });
     this.renderEpiCurve(cases);
+    this.renderStackedImunisasiUmur(cases);
     this.renderAgeGroupChart(cases);
     this.renderDonutImunisasi(cases);
     this.renderGenderChart(cases);
@@ -97,6 +99,175 @@ window.SIDIF_CHARTS = {
           }
         }
       }
+    });
+  },
+
+  // 1B. Grafik Status Imunisasi Menurut Kelompok Umur (100% Stacked Bar Sesuai Slide 6 PPT Pimpinan Dinkes)
+  renderStackedImunisasiUmur(cases) {
+    const ctx = document.getElementById("chart-stacked-imunisasi-umur");
+    if (!ctx) return;
+
+    // 5 Kelompok Umur: < 1 tahun, 1 - 4 tahun, 5 - 9 tahun, 10 - 14 tahun, > 14 tahun
+    const ageLabels = ["< 1 tahun", "1 - 4 tahun", "5 - 9 tahun", "10 - 14 tahun", "> 14 tahun"];
+    const groups = [
+      { tidak: 0, belum: 0, lengkap: 0, total: 0 }, // < 1 th
+      { tidak: 0, belum: 0, lengkap: 0, total: 0 }, // 1 - 4 th
+      { tidak: 0, belum: 0, lengkap: 0, total: 0 }, // 5 - 9 th
+      { tidak: 0, belum: 0, lengkap: 0, total: 0 }, // 10 - 14 th
+      { tidak: 0, belum: 0, lengkap: 0, total: 0 }  // > 14 th
+    ];
+
+    cases.forEach(c => {
+      const thn = c.umurTahun !== undefined ? c.umurTahun : 0;
+      let gIdx = 4;
+      if (thn < 1) gIdx = 0;
+      else if (thn >= 1 && thn <= 4) gIdx = 1;
+      else if (thn >= 5 && thn <= 9) gIdx = 2;
+      else if (thn >= 10 && thn <= 14) gIdx = 3;
+      else gIdx = 4;
+
+      const imm = (c.statusImunisasi || "").toLowerCase();
+      const dosis = c.totalDosis !== undefined ? c.totalDosis : 0;
+
+      if (imm.includes("tidak diimunisasi") || dosis === 0) {
+        groups[gIdx].tidak++;
+      } else if (imm.includes("lengkap") && !imm.includes("belum") || dosis >= 4) {
+        groups[gIdx].lengkap++;
+      } else {
+        groups[gIdx].belum++;
+      }
+      groups[gIdx].total++;
+    });
+
+    // Hitung persentase proporsional 100% stacked bar
+    const pTidak = [];
+    const pBelum = [];
+    const pLengkap = [];
+
+    groups.forEach(g => {
+      if (g.total === 0) {
+        pTidak.push(0);
+        pBelum.push(0);
+        pLengkap.push(0);
+      } else {
+        const pctT = Math.round((g.tidak / g.total) * 100);
+        const pctB = Math.round((g.belum / g.total) * 100);
+        const pctL = Math.max(0, 100 - pctT - pctB);
+        pTidak.push(pctT);
+        pBelum.push(pctB);
+        pLengkap.push(pctL);
+      }
+    });
+
+    if (this.stackedImunisasiChart) {
+      this.stackedImunisasiChart.destroy();
+    }
+
+    const self = this;
+    this.stackedImunisasiChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ageLabels,
+        datasets: [
+          {
+            label: "Tidak diimunisasi",
+            data: pTidak,
+            backgroundColor: "#DC2626", // Merah
+            borderColor: "#B91C1C",
+            borderWidth: 1,
+            maxBarThickness: 48,
+            borderRadius: 0
+          },
+          {
+            label: "Imunisasi belum lengkap",
+            data: pBelum,
+            backgroundColor: "#FACC15", // Kuning
+            borderColor: "#EAB308",
+            borderWidth: 1,
+            maxBarThickness: 48,
+            borderRadius: 0
+          },
+          {
+            label: "Imunisasi lengkap",
+            data: pLengkap,
+            backgroundColor: "#84CC16", // Hijau
+            borderColor: "#65A30D",
+            borderWidth: 1,
+            maxBarThickness: 48,
+            borderRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        categoryPercentage: 0.55,
+        barPercentage: 0.8,
+        plugins: {
+          legend: {
+            display: true,
+            position: "bottom",
+            labels: {
+              boxWidth: 12,
+              padding: 10,
+              font: { size: 10, weight: "bold" }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (item) => {
+                const g = groups[item.dataIndex];
+                const rawCount = item.datasetIndex === 0 ? g.tidak : (item.datasetIndex === 1 ? g.belum : g.lengkap);
+                return `${item.dataset.label}: ${item.raw}% (${rawCount} dari ${g.total} kasus)`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { display: false },
+            ticks: { font: { size: 10, weight: "bold" } }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            max: 100, // Pas 100% proporsional
+            ticks: {
+              stepSize: 20,
+              callback: (v) => v + "%",
+              font: { size: 9 }
+            },
+            title: {
+              display: true,
+              text: "Proporsi Kasus (%)",
+              font: { size: 10, weight: "bold" }
+            }
+          }
+        }
+      },
+      plugins: [{
+        id: "stackedPctLabels",
+        afterDatasetsDraw(chart) {
+          const { ctx } = chart;
+          chart.data.datasets.forEach((dataset, datasetIdx) => {
+            const meta = chart.getDatasetMeta(datasetIdx);
+            meta.data.forEach((bar, index) => {
+              const val = dataset.data[index];
+              if (val > 0) {
+                ctx.save();
+                ctx.fillStyle = datasetIdx === 1 ? "#78350F" : "#FFFFFF"; // Teks cokelat tua untuk kuning, putih untuk merah & hijau
+                ctx.font = "bold 11px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                const yPos = (bar.y + bar.base) / 2;
+                ctx.fillText(val + "%", bar.x, yPos);
+                ctx.restore();
+              }
+            });
+          });
+        }
+      }]
     });
   },
 
@@ -258,14 +429,40 @@ window.SIDIF_CHARTS = {
         responsive: true,
         maintainAspectRatio: false,
         cutout: "55%",
+        rotation: 180, // KONSISTEN: Mulai dari jam 6 putar searah jarum jam -> Laki-laki di KIRI, Perempuan di KANAN
         plugins: {
           legend: {
             position: "bottom",
-            labels: { boxWidth: 12, font: { size: 10, weight: "bold" } }
+            labels: {
+              boxWidth: 12,
+              font: { size: 10, weight: "bold" },
+              padding: 10
+            }
           }
         }
       }
     });
+
+    // Update teks kartu indikator cowok & cewek (Konsisten Kiri: Cowok, Kanan: Cewek)
+    const maleTextEl = document.getElementById("gender-card-male-text");
+    if (maleTextEl) maleTextEl.innerText = `${l} (${pL}%)`;
+
+    const femaleTextEl = document.getElementById("gender-card-female-text");
+    if (femaleTextEl) femaleTextEl.innerText = `${p} (${pP}%)`;
+
+    const badgeRatio = document.getElementById("gender-ratio-badge");
+    if (badgeRatio) badgeRatio.innerText = `Rasio ${Math.round(pL)}% : ${Math.round(pP)}%`;
+
+    const summaryText = document.getElementById("gender-summary-text");
+    if (summaryText) {
+      if (Math.abs(pL - pP) <= 5) {
+        summaryText.innerText = "Kasus pada laki-laki seimbang dengan perempuan";
+      } else if (l > p) {
+        summaryText.innerText = `Kasus lebih didominasi oleh laki-laki (${pL}%)`;
+      } else {
+        summaryText.innerText = `Kasus lebih didominasi oleh perempuan (${pP}%)`;
+      }
+    }
 
     // Update Banner ADS jika ada elemennya
     const adsEl = document.getElementById("kpi-ads-text");
@@ -326,6 +523,40 @@ window.SIDIF_CHARTS = {
     if (elProf) {
       const pctProf = tot > 0 ? ((totProf / tot) * 100).toFixed(1) : "0";
       elProf.innerText = `${pctProf}%`;
+    }
+  },
+
+  // 6. Ekspor Grafik ke Gambar PNG (Latar Belakang Putih Bersih untuk Bahan Paparan PowerPoint)
+  downloadChart(canvasId, defaultFilename = "grafik-surveilans-difteri") {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+      alert("Grafik belum dimuat di layar.");
+      return;
+    }
+
+    try {
+      // Buat canvas sementara berlatar putih bersih (agar tidak transparan di PPT)
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = canvas.width;
+      exportCanvas.height = canvas.height;
+      const ctx = exportCanvas.getContext("2d");
+
+      // Beri background putih pekat
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+      // Gambar grafik di atasnya
+      ctx.drawImage(canvas, 0, 0);
+
+      // Trigger download berkas PNG
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().substring(0, 10);
+      link.download = `${defaultFilename}_${dateStr}.png`;
+      link.href = exportCanvas.toDataURL("image/png", 1.0);
+      link.click();
+    } catch (err) {
+      console.error("Gagal mengekspor grafik:", err);
+      alert("Gagal mengunduh grafik. Silakan coba kembali.");
     }
   }
 };

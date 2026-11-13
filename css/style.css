@@ -164,4 +164,21 @@ input:focus, select:focus, textarea:focus {
   .pe-document-view td {
     font-size: 10pt !important;
   }
+
+  /* Standar Pemisahan 3 Halaman Form DIF-1 Kemenkes */
+  .dif1-page {
+    page-break-after: always !important;
+    break-after: page !important;
+    min-height: 260mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 0 15mm 0 !important;
+    background: transparent !important;
+  }
+  .dif1-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+    margin-bottom: 0 !important;
+  }
 }

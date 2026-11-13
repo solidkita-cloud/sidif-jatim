@@ -268,5 +268,40 @@ window.SIDIF_FORMS = {
     }
 
     return { isDuplicate: false };
+  },
+
+  // 10. Generator Nomor EPID Baku Kemenkes (D - [Kode Prov] [Kode Kab] [Tahun] [No Urut])
+  generateNoEpid(kabupatenName, customSeq = null, year = null) {
+    const yr = year || new Date().getFullYear();
+    const kabCodeMap = {
+      "kabupaten pacitan": "01", "kabupaten ponorogo": "02", "kabupaten trenggalek": "03", "kabupaten tulungagung": "04",
+      "kabupaten blitar": "05", "kabupaten kediri": "06", "kabupaten malang": "07", "kabupaten lumajang": "08",
+      "kabupaten jember": "09", "kabupaten banyuwangi": "10", "kabupaten bondowoso": "11", "kabupaten situbondo": "12",
+      "kabupaten probolinggo": "13", "kabupaten pasuruan": "14", "kabupaten sidoarjo": "15", "kabupaten mojokerto": "16",
+      "kabupaten jombang": "17", "kabupaten nganjuk": "18", "kabupaten madiun": "19", "kabupaten magetan": "20",
+      "kabupaten ngawi": "21", "kabupaten bojonegoro": "22", "kabupaten tuban": "23", "kabupaten lamongan": "24",
+      "kabupaten gresik": "25", "kabupaten bangkalan": "26", "kabupaten sampang": "27", "kabupaten pamekasan": "28",
+      "kabupaten sumenep": "29", "kota kediri": "71", "kota blitar": "72", "kota malang": "73",
+      "kota probolinggo": "74", "kota pasuruan": "75", "kota mojokerto": "76", "kota madiun": "77",
+      "kota surabaya": "78", "kota batu": "79"
+    };
+
+    const clean = (kabupatenName || "").toLowerCase().trim();
+    const kodeKab = kabCodeMap[clean] || "00";
+
+    // Hitung nomor urut kasus di kabupaten ini pada tahun berjalan
+    let seq = customSeq;
+    if (!seq) {
+      const allCases = window.SIDIF_STORE ? window.SIDIF_STORE.getCases() : [];
+      const regionalCases = allCases.filter(c => {
+        const isSameKab = (c.kabupaten || "").toLowerCase().trim() === clean;
+        const cYear = (c.tanggalOnset ? new Date(c.tanggalOnset).getFullYear() : (c.createdAt ? new Date(c.createdAt).getFullYear() : yr));
+        return isSameKab && cYear === yr;
+      });
+      seq = regionalCases.length + 1;
+    }
+
+    const padSeq = String(seq).padStart(3, "0");
+    return `D-35.${kodeKab}-${yr}-${padSeq}`;
   }
 };

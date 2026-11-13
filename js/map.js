@@ -192,12 +192,15 @@ window.SIDIF_MAP = {
     }
   },
 
-  // Logika Pewarnaan Sesuai PRD v2.0 & Slide PPT
+  // Logika Pewarnaan Sesuai Arahan Pimpinan & PRD:
+  // 1. MERAH: Ada kasus konfirmasi kultur lab positif (KLB)
+  // 2. PINK: Ada kasus tapi hasil lab negatif / belum lab (Kompatibel Klinis)
+  // 3. PUTIH: Tidak ada kasus sama sekali (0 Kasus / Bebas Difteri)
   getFeatureStyle(feature) {
     const rawName = (feature.properties.name || feature.properties.cleanName || "").toLowerCase();
     const data = this.regionsData[rawName] || { kasus: 0, kasusKonfirmasi: 0, kasusKlinis: 0 };
 
-    // A. Merah Solid: Ada Kasus Konfirmasi Lab (10 Kab/Kota KLB Sesuai Slide 4)
+    // A. Merah: Positif Kultur Lab (KLB)
     if (data.kasusKonfirmasi > 0) {
       return {
         fillColor: "#DC2626",
@@ -208,25 +211,24 @@ window.SIDIF_MAP = {
       };
     }
 
-    // B. Merah Terang / Arsir: Ada Kasus Kompatibel Klinis (Menunggu Lab)
+    // B. Pink: Ada kasus tapi kultur negatif / suspek / pending
     if (data.kasusKlinis > 0 || data.kasus > 0) {
       return {
-        fillColor: "#F87171",
+        fillColor: "#F472B6",
         weight: 1.5,
         opacity: 1,
-        color: "#DC2626",
-        dashArray: "4, 4",
-        fillOpacity: 0.75
+        color: "#DB2777",
+        fillOpacity: 0.85
       };
     }
 
-    // C. Putih Bersih / Abu Halus: Bebas Kasus (0 Kasus)
+    // C. Putih Bersih: Bebas Kasus (0 Kasus)
     return {
       fillColor: "#FFFFFF",
       weight: 1.2,
       opacity: 1,
       color: "#94A3B8",
-      fillOpacity: 0.7
+      fillOpacity: 0.9
     };
   },
 

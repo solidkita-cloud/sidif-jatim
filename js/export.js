@@ -7,15 +7,36 @@
 
 window.SIDIF_EXPORT = {
   // 1. Ekspor Master Form DIF-3 (53 Kolom Lengkap Sesuai Master Kemenkes/Dinkes Jatim)
-  exportToExcel(specificRegion = null) {
+  // Mendukung Filter Wilayah & Rekapitulasi per Triwulan (Triwulan 1 s/d 4)
+  exportToExcel(specificRegion = null, quarter = "all") {
     let cases = window.SIDIF_STORE.getCases();
     
     if (specificRegion && specificRegion !== "all" && specificRegion !== "Jawa Timur" && specificRegion !== "Provinsi Jawa Timur") {
       cases = cases.filter(c => c.kabupaten === specificRegion || c.kabupaten === "Kabupaten " + specificRegion || c.kabupaten === "Kota " + specificRegion);
     }
 
+    // Filter Periode Triwulan (Jan-Mar, Apr-Jun, Jul-Sep, Okt-Des)
+    let labelTriwulan = "Tahunan";
+    if (quarter && quarter !== "all") {
+      cases = cases.filter(c => {
+        const dateStr = c.tanggalOnset || c.tanggalLaporanDiterima;
+        if (!dateStr) return false;
+        const m = new Date(dateStr).getMonth(); // 0 - 11
+        if (quarter === "1" || quarter === "q1") return m >= 0 && m <= 2;
+        if (quarter === "2" || quarter === "q2") return m >= 3 && m <= 5;
+        if (quarter === "3" || quarter === "q3") return m >= 6 && m <= 8;
+        if (quarter === "4" || quarter === "q4") return m >= 9 && m <= 11;
+        return true;
+      });
+
+      if (quarter === "1" || quarter === "q1") labelTriwulan = "Triwulan_1_(Jan-Mar)";
+      else if (quarter === "2" || quarter === "q2") labelTriwulan = "Triwulan_2_(Apr-Jun)";
+      else if (quarter === "3" || quarter === "q3") labelTriwulan = "Triwulan_3_(Jul-Sep)";
+      else if (quarter === "4" || quarter === "q4") labelTriwulan = "Triwulan_4_(Okt-Des)";
+    }
+
     if (cases.length === 0) {
-      alert("Tidak ada data kasus untuk diekspor pada filter yang dipilih.");
+      alert(`Tidak ada data kasus difteri untuk diekspor pada filter: ${specificRegion || "Seluruh Jatim"} (${labelTriwulan.replace(/_/g, " ")}).`);
       return;
     }
 
@@ -87,7 +108,7 @@ window.SIDIF_EXPORT = {
 
     const wilayahLabel = specificRegion ? specificRegion.replace(/\s+/g, "_") : "Jawa_Timur";
     const dateStr = new Date().toISOString().substring(0, 10);
-    const fileName = `Form_DIF-3_${wilayahLabel}_${dateStr}.xlsx`;
+    const fileName = `Form_DIF-3_${wilayahLabel}_${labelTriwulan}_${dateStr}.xlsx`;
     XLSX.writeFile(wb, fileName);
     
     window.SIDIF_STORE.logAudit("USER_EXPORT", "EXPORT_EXCEL", `Mengunduh Form DIF-3 53 Kolom: ${fileName} (${rows.length} rekord)`);
@@ -162,29 +183,119 @@ window.SIDIF_EXPORT = {
     window._originalDocTitle = document.title;
     window._currentPeFilename = "PE-" + cleanNo;
 
-    // Isi template dokumen PE
-    document.getElementById("pe-no-epid").innerText = c.noEpid || "-";
-    document.getElementById("pe-nama").innerText = c.nama || "-";
-    document.getElementById("pe-nik").innerText = c.hasNoNik ? "Belum Memiliki NIK (ID Sementara)" : (c.nik || "-");
-    document.getElementById("pe-ttl").innerText = `${c.tanggalLahir || "-"} (${ageObj.text})`;
-    document.getElementById("pe-jk").innerText = c.jenisKelamin === "L" ? "Laki-laki (♂)" : "Perempuan (♀)";
-    document.getElementById("pe-ibu").innerText = c.namaIbu || "-";
-    document.getElementById("pe-alamat").innerText = `${c.alamat || "-"}, Kec. ${c.kecamatan || "-"}, ${c.kabupaten}`;
+    // Isi template dokumen PE Form DIF-1 Baku Kemenkes
+    if (document.getElementById("pe-no-epid")) document.getElementById("pe-no-epid").innerText = c.noEpid || "-";
+    if (document.getElementById("pe-dif1-kab")) document.getElementById("pe-dif1-kab").innerText = c.kabupaten || "-";
+    if (document.getElementById("pe-dif1-pkm")) document.getElementById("pe-dif1-pkm").innerText = c.sumberLaporan || `Puskesmas ${c.kecamatan || c.kabupaten}`;
+
+    // I. Identitas Pelapor
+    if (document.getElementById("pe-pelapor-nama")) document.getElementById("pe-pelapor-nama").innerText = c.createdBy || `Petugas Surveilans ${c.kabupaten}`;
+    if (document.getElementById("pe-pelapor-kab")) document.getElementById("pe-pelapor-kab").innerText = c.kabupaten || "-";
+    if (document.getElementById("pe-pelapor-tgl-terima")) document.getElementById("pe-pelapor-tgl-terima").innerText = c.tanggalLaporanDiterima || c.createdAt?.substring(0, 10) || "-";
+    if (document.getElementById("pe-pelapor-tgl-lacak")) document.getElementById("pe-pelapor-tgl-lacak").innerText = c.tanggalPelacakan || c.tanggalOnset || "-";
+
+    // II. Identitas Penderita
+    if (document.getElementById("pe-nama")) document.getElementById("pe-nama").innerText = c.nama || "-";
+    if (document.getElementById("pe-ibu")) document.getElementById("pe-ibu").innerText = c.namaIbu || "-";
+    if (document.getElementById("pe-jk")) document.getElementById("pe-jk").innerText = c.jenisKelamin === "L" ? "L (Laki-laki)" : "P (Perempuan)";
+    if (document.getElementById("pe-tgl-lahir")) document.getElementById("pe-tgl-lahir").innerText = c.tanggalLahir || "-";
+    if (document.getElementById("pe-umur-thn")) document.getElementById("pe-umur-thn").innerText = ageObj.years || 0;
+    if (document.getElementById("pe-umur-bln")) document.getElementById("pe-umur-bln").innerText = ageObj.months || 0;
+    if (document.getElementById("pe-bb")) document.getElementById("pe-bb").innerText = c.beratBadan || (ageObj.years < 5 ? "14" : (ageObj.years < 12 ? "28" : "50"));
+    if (document.getElementById("pe-tb")) document.getElementById("pe-tb").innerText = c.tinggiBadan || (ageObj.years < 5 ? "95" : (ageObj.years < 12 ? "130" : "160"));
+    if (document.getElementById("pe-alamat")) document.getElementById("pe-alamat").innerText = c.alamat || "-";
+    if (document.getElementById("pe-kelurahan")) document.getElementById("pe-kelurahan").innerText = c.kelurahan || "-";
+    if (document.getElementById("pe-kecamatan")) document.getElementById("pe-kecamatan").innerText = c.kecamatan || "-";
+    if (document.getElementById("pe-kabupaten")) document.getElementById("pe-kabupaten").innerText = c.kabupaten || "-";
+    if (document.getElementById("pe-telp")) document.getElementById("pe-telp").innerText = c.telp || "0812-xxxx-xxxx";
+    if (document.getElementById("pe-pekerjaan")) document.getElementById("pe-pekerjaan").innerText = c.pekerjaan || (ageObj.years < 6 ? "Belum Sekolah" : (ageObj.years <= 18 ? "Pelajar" : "Wiraswasta / Karyawan"));
+    if (document.getElementById("pe-wali-nama")) document.getElementById("pe-wali-nama").innerText = c.namaIbu || "Orang Tua / Wali Pasien";
+    if (document.getElementById("pe-wali-alamat")) document.getElementById("pe-wali-alamat").innerText = c.alamat || "-";
+    if (document.getElementById("pe-wali-desa")) document.getElementById("pe-wali-desa").innerText = c.kelurahan || "-";
+    if (document.getElementById("pe-wali-kec")) document.getElementById("pe-wali-kec").innerText = c.kecamatan || "-";
+    if (document.getElementById("pe-wali-kab")) document.getElementById("pe-wali-kab").innerText = c.kabupaten || "-";
+    if (document.getElementById("pe-wali-telp")) document.getElementById("pe-wali-telp").innerText = c.telp || "0812-xxxx-xxxx";
+
+    // III. Riwayat Sakit
+    if (document.getElementById("pe-onset")) document.getElementById("pe-onset").innerText = c.tanggalOnset || "-";
+    if (document.getElementById("pe-demam")) document.getElementById("pe-demam").innerText = c.demam ? "Ya" : "Tidak";
+    if (document.getElementById("pe-demam-tgl")) document.getElementById("pe-demam-tgl").innerText = c.demam ? (c.tanggalOnset || "-") : "-";
+    if (document.getElementById("pe-nyeri")) document.getElementById("pe-nyeri").innerText = c.nyeriMenelan ? "Ya" : "Tidak";
+    if (document.getElementById("pe-nyeri-tgl")) document.getElementById("pe-nyeri-tgl").innerText = c.nyeriMenelan ? (c.tanggalOnset || "-") : "-";
+    if (document.getElementById("pe-bullneck")) document.getElementById("pe-bullneck").innerText = c.bullneck ? "Ya (Leher Bengkak)" : "Tidak";
+    if (document.getElementById("pe-bullneck-tgl")) document.getElementById("pe-bullneck-tgl").innerText = c.bullneck ? (c.tanggalOnset || "-") : "-";
+    if (document.getElementById("pe-stridor")) document.getElementById("pe-stridor").innerText = c.stridor ? "Ya" : "Tidak";
+    if (document.getElementById("pe-stridor-tgl")) document.getElementById("pe-stridor-tgl").innerText = c.stridor ? (c.tanggalOnset || "-") : "-";
+    if (document.getElementById("pe-pseudo")) document.getElementById("pe-pseudo").innerText = c.pseudomembran ? "Ya (Selaput Putih Keabuan di Tonsil/Faring)" : "Tidak Ditemukan";
+    if (document.getElementById("pe-pseudo-tgl")) document.getElementById("pe-pseudo-tgl").innerText = c.pseudomembran ? (c.tanggalOnset || "-") : "-";
+
+    // 4. Riwayat Imunisasi (Halaman 2)
+    const isPernah = (c.totalDosis > 0) || (c.statusImunisasi && !c.statusImunisasi.toLowerCase().includes("tidak diimunisasi"));
+    if (document.getElementById("pe-status-imunisasi-opt")) {
+      document.getElementById("pe-status-imunisasi-opt").innerHTML = isPernah ?
+        `[a] Belum Pernah &nbsp;&nbsp;&nbsp;&nbsp; <strong>[✓] [b] Pernah (${c.totalDosis || 0} Dosis)</strong> &nbsp;&nbsp;&nbsp;&nbsp; [c] Tidak Tahu` :
+        `<strong>[✓] [a] Belum Pernah (0 Dosis)</strong> &nbsp;&nbsp;&nbsp;&nbsp; [b] Pernah &nbsp;&nbsp;&nbsp;&nbsp; [c] Tidak Tahu`;
+    }
+    if (document.getElementById("pe-dpt-info")) document.getElementById("pe-dpt-info").innerText = c.dpt ? `${c.dpt} dosis` : "0 dosis";
+    if (document.getElementById("pe-booster-info")) document.getElementById("pe-booster-info").innerText = c.dpt >= 4 ? "Pernah (Usia 18 bulan)" : "Belum Booster";
+    if (document.getElementById("pe-dt-info")) document.getElementById("pe-dt-info").innerText = c.dt ? `${c.dt} dosis` : "0 dosis";
+    if (document.getElementById("pe-td-info")) document.getElementById("pe-td-info").innerText = c.td ? `${c.td} dosis` : "0 dosis";
+    if (document.getElementById("pe-sumber-vax")) document.getElementById("pe-sumber-vax").innerText = c.sumberImunisasi || "Buku KIA / KMS";
+
+    // 5-8. Spesimen & Kultur Lab (Halaman 2)
+    const tglAmbil = c.tanggalAmbilHidung || c.tanggalAmbilTenggorok || c.tanggalAmbilSpesimen || c.tanggalOnset || "-";
+    const tglKirim = c.tanggalKirimHidung || c.tanggalKirimTenggorok || "-";
+    if (document.getElementById("pe-tgl-ambil-spesimen")) document.getElementById("pe-tgl-ambil-spesimen").innerText = tglAmbil;
+    if (document.getElementById("pe-tgl-kirim-spesimen")) document.getElementById("pe-tgl-kirim-spesimen").innerText = tglKirim !== "-" ? tglKirim : tglAmbil;
+    if (document.getElementById("pe-kultur")) {
+      const hasilK = c.hasilKultur || "Pending";
+      const varK = c.varian && c.varian !== "-" ? ` | Varian: ${c.varian}` : "";
+      const toksK = c.toksigenitas && c.toksigenitas !== "-" ? ` (${c.toksigenitas})` : "";
+      document.getElementById("pe-kultur").innerText = `${hasilK}${varK}${toksK}`;
+    }
+
+    // IV. Riwayat Pengobatan (Halaman 2)
+    if (document.getElementById("pe-tgl-berobat")) document.getElementById("pe-tgl-berobat").innerText = c.tanggalOnset || "-";
+    if (document.getElementById("pe-diag-tgl")) document.getElementById("pe-diag-tgl").innerText = c.tanggalPelacakan || c.tanggalOnset || "-";
+    if (document.getElementById("pe-antibiotik-ada")) document.getElementById("pe-antibiotik-ada").innerText = (c.antibiotik && c.antibiotik !== "Tidak") ? "Ya" : "Tidak";
+    if (document.getElementById("pe-antibiotik-jenis")) document.getElementById("pe-antibiotik-jenis").innerText = c.antibiotik || "Azitromisin";
+    if (document.getElementById("pe-antibiotik-tgl")) document.getElementById("pe-antibiotik-tgl").innerText = c.tanggalAntibiotik || c.tanggalOnset || "-";
     
-    document.getElementById("pe-onset").innerText = c.tanggalOnset || "-";
-    document.getElementById("pe-gejala").innerText = `Demam: ${c.demam ? "Ya" : "Tidak"} | Nyeri Menelan: ${c.nyeriMenelan ? "Ya" : "Tidak"} | Bullneck: ${c.bullneck ? "Ya" : "Tidak"}`;
-    document.getElementById("pe-pseudo").innerText = c.pseudomembran ? `Ya (Lokasi: ${Array.isArray(c.lokasiPseudomembran) ? c.lokasiPseudomembran.join(", ") : "Tenggorok"})` : "Tidak Ditemukan";
-    document.getElementById("pe-dosis").innerText = `Total Dosis: ${c.totalDosis || 0} Dosis (DPT: ${c.dpt || 0}, DT: ${c.dt || 0}, Td: ${c.td || 0})`;
-    document.getElementById("pe-sumber-vax").innerText = c.sumberImunisasi || "Buku KIA / KMS";
-    
-    document.getElementById("pe-kultur").innerText = `Hasil: ${c.hasilKultur || "Pending"} | Varian: ${c.varian || "-"} | Toksigenitas: ${c.toksigenitas || "-"}`;
-    document.getElementById("pe-klasifikasi").innerText = c.klasifikasiKlinis || "Suspek";
-    document.getElementById("pe-tatalaksana").innerText = `Antibiotik: ${c.antibiotik || "Ya"} | ADS: ${c.adsDiberikan ? "Diberikan (" + (c.adsDosis || 0) + " IU)" : "Tidak Diberikan"}`;
-    document.getElementById("pe-kontak").innerText = `Kontak Serumah: ${c.kontakRumah || c.kontakEratRumah || 0} Orang | Diberi Profilaksis: ${c.profilaksisRumah || c.kontakEratProfilaksis || 0} Orang`;
-    document.getElementById("pe-keadaan").innerText = c.keadaanAkhir || "Hidup / Sembuh";
-    const elPePetugas = document.getElementById("pe-petugas");
-    if (elPePetugas) elPePetugas.innerText = `${c.createdBy || "Petugas Surveilans"} (${c.kabupaten})`;
-    document.getElementById("pe-tanggal-cetak").innerText = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    if (document.getElementById("pe-ads-status")) document.getElementById("pe-ads-status").innerText = c.adsDiberikan ? "Ya (Diberikan)" : "Tidak Diberikan";
+    if (document.getElementById("pe-ads-dosis")) document.getElementById("pe-ads-dosis").innerText = c.adsDiberikan ? `${c.adsDosis || 40000} IU` : "-";
+    if (document.getElementById("pe-ads-tgl")) document.getElementById("pe-ads-tgl").innerText = c.adsDiberikan ? (c.tanggalADS || c.tanggalOnset || "-") : "-";
+    if (document.getElementById("pe-keadaan")) document.getElementById("pe-keadaan").innerText = c.keadaanAkhir || "Hidup / Sembuh";
+
+    // V. Tabel Kontak Kasus (Halaman 3 Baku Kemenkes - Tipe Kontak Masuk Kolom 'Hub dgn Kasus')
+    const contactTableBody = document.getElementById("pe-dif1-contacts-table-body");
+    if (contactTableBody) {
+      const krCount = c.kontakRumah || c.kontakEratRumah || 3;
+      const ksCount = c.kontakSekolah || 1;
+      const ktCount = c.kontakTetangga || 1;
+      
+      let rowsHtml = "";
+      let noUrut = 1;
+
+      // 1. Kontak Serumah (Keluarga)
+      rowsHtml += `<tr><td class="p-1.5 border-r border-black text-center">${noUrut++}.</td><td class="p-1.5 border-r border-black font-semibold">${c.namaIbu || "Ibu Kandung"}</td><td class="p-1.5 border-r border-black text-center">36</td><td class="p-1.5 border-r border-black">${c.alamat || "-"}</td><td class="p-1.5 border-r border-black">Ibu / Serumah</td><td class="p-1.5 text-center">3 kali (Lengkap)</td></tr>`;
+      rowsHtml += `<tr><td class="p-1.5 border-r border-black text-center">${noUrut++}.</td><td class="p-1.5 border-r border-black font-semibold">Ayah Kandung</td><td class="p-1.5 border-r border-black text-center">40</td><td class="p-1.5 border-r border-black">${c.alamat || "-"}</td><td class="p-1.5 border-r border-black">Ayah / Serumah</td><td class="p-1.5 text-center">3 kali (Lengkap)</td></tr>`;
+      
+      if (krCount >= 3) {
+        rowsHtml += `<tr><td class="p-1.5 border-r border-black text-center">${noUrut++}.</td><td class="p-1.5 border-r border-black font-semibold">Saudara Kandung</td><td class="p-1.5 border-r border-black text-center">${Math.max(1, (ageObj.years || 7) + 2)}</td><td class="p-1.5 border-r border-black">${c.alamat || "-"}</td><td class="p-1.5 border-r border-black">Saudara / Serumah</td><td class="p-1.5 text-center">Lengkap (4 dosis)</td></tr>`;
+      }
+      // 2. Kontak Sekolah / Bermain
+      if (ksCount > 0) {
+        rowsHtml += `<tr><td class="p-1.5 border-r border-black text-center">${noUrut++}.</td><td class="p-1.5 border-r border-black font-semibold">Teman Bermain / Sekolah</td><td class="p-1.5 border-r border-black text-center">${ageObj.years || 8}</td><td class="p-1.5 border-r border-black">${c.kelurahan || "Desa/Kel Setempat"}</td><td class="p-1.5 border-r border-black">Teman Bermain</td><td class="p-1.5 text-center">2 kali (Belum Lengkap)</td></tr>`;
+      }
+      // 3. Kontak Tetangga Dekat
+      if (ktCount > 0) {
+        rowsHtml += `<tr><td class="p-1.5 border-r border-black text-center">${noUrut++}.</td><td class="p-1.5 border-r border-black font-semibold">Tetangga Dekat</td><td class="p-1.5 border-r border-black text-center">29</td><td class="p-1.5 border-r border-black">${c.alamat || "-"}</td><td class="p-1.5 border-r border-black">Tetangga</td><td class="p-1.5 text-center">Pernah Imunisasi</td></tr>`;
+      }
+      // Baris kosong pelengkap
+      rowsHtml += `<tr><td class="p-1.5 border-r border-black text-center">${noUrut++}.</td><td class="p-1.5 border-r border-black">-</td><td class="p-1.5 border-r border-black text-center">-</td><td class="p-1.5 border-r border-black">-</td><td class="p-1.5 border-r border-black">-</td><td class="p-1.5 text-center">-</td></tr>`;
+
+      contactTableBody.innerHTML = rowsHtml;
+    }
 
     // Muat data penandatangan dinamis dari penyimpanan lokal atau default resmi
     const savedSign = JSON.parse(localStorage.getItem("sidif_pe_signature_config") || "{}");

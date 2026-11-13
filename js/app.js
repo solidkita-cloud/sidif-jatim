@@ -297,12 +297,206 @@ window.SIDIF_APP = {
     }
   },
 
+  // Kontrol Kondisional Hasil Lab (Kultur Positif -> Wajib Varian & Toksigenitas; Negatif -> Terkunci)
+  updateLabConditionalFields() {
+    const kHidung = document.getElementById("form-hasil-kultur-hidung") ? document.getElementById("form-hasil-kultur-hidung").value : "";
+    const kTenggorok = document.getElementById("form-hasil-kultur-tenggorok") ? document.getElementById("form-hasil-kultur-tenggorok").value : "";
+    const isPositif = kHidung === "Positif" || kTenggorok === "Positif";
+
+    const wrapVarian = document.getElementById("wrapper-form-varian");
+    const wrapToksik = document.getElementById("wrapper-form-toksigenitas");
+    const reqVarian = document.getElementById("req-varian");
+    const reqToksik = document.getElementById("req-toksik");
+    const selVarian = document.getElementById("form-varian");
+    const selToksik = document.getElementById("form-toksigenitas");
+
+    if (isPositif) {
+      if (wrapVarian) wrapVarian.classList.remove("opacity-50", "pointer-events-none");
+      if (wrapToksik) wrapToksik.classList.remove("opacity-50", "pointer-events-none");
+      if (reqVarian) reqVarian.classList.remove("hidden");
+      if (reqToksik) reqToksik.classList.remove("hidden");
+      if (selVarian) selVarian.removeAttribute("disabled");
+      if (selToksik) selToksik.removeAttribute("disabled");
+    } else {
+      if (wrapVarian) wrapVarian.classList.add("opacity-50", "pointer-events-none");
+      if (wrapToksik) wrapToksik.classList.add("opacity-50", "pointer-events-none");
+      if (reqVarian) reqVarian.classList.add("hidden");
+      if (reqToksik) reqToksik.classList.add("hidden");
+      if (selVarian) { selVarian.value = "-"; selVarian.setAttribute("disabled", "disabled"); }
+      if (selToksik) { selToksik.value = "-"; selToksik.setAttribute("disabled", "disabled"); }
+    }
+    this.updateLiveCalculations();
+  },
+
+  // Kontrol Input Antibiotik (Azitromisin, Eritromisin, Manual, & Validasi Tanggal)
+  handleAntibiotikChange() {
+    const sel = document.getElementById("form-antibiotik");
+    if (!sel) return;
+    const val = sel.value;
+    const boxManual = document.getElementById("box-antibiotik-manual");
+    const reqTgl = document.getElementById("req-tgl-anti");
+    const inputTgl = document.getElementById("form-tgl-antibiotik");
+
+    if (val === "Lainnya") {
+      if (boxManual) boxManual.classList.remove("hidden");
+    } else {
+      if (boxManual) boxManual.classList.add("hidden");
+    }
+
+    if (val !== "Tidak") {
+      if (reqTgl) reqTgl.classList.remove("hidden");
+    } else {
+      if (reqTgl) reqTgl.classList.add("hidden");
+      if (inputTgl) inputTgl.value = "";
+    }
+  },
+
+  // Kontrol Input Terapi ADS (Dosis IU & Tanggal Wajib Jika ADS Diberikan)
+  handleAdsChange() {
+    const chk = document.getElementById("form-ads");
+    if (!chk) return;
+    const isChecked = chk.checked;
+    const reqTgl = document.getElementById("req-tgl-ads");
+    const reqDosis = document.getElementById("req-dosis-ads");
+    const inputTgl = document.getElementById("form-tgl-ads");
+    const inputDosis = document.getElementById("form-ads-dosis");
+
+    if (isChecked) {
+      if (reqTgl) reqTgl.classList.remove("hidden");
+      if (reqDosis) reqDosis.classList.remove("hidden");
+      if (inputDosis && (!inputDosis.value || inputDosis.value === "0")) inputDosis.value = "40000";
+    } else {
+      if (reqTgl) reqTgl.classList.add("hidden");
+      if (reqDosis) reqDosis.classList.add("hidden");
+      if (inputTgl) inputTgl.value = "";
+      if (inputDosis) inputDosis.value = "";
+    }
+  },
+
+  // Edit / Update Kasus & Hasil Lab BBLKM
+  editCase(caseId) {
+    const c = window.SIDIF_STORE.getCaseById(caseId);
+    if (!c) {
+      alert("Data kasus difteri tidak ditemukan.");
+      return;
+    }
+
+    const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const isRegionalUser = currentUser && (currentUser.type === "kabupaten" || currentUser.type === "kota" || currentUser.role === "operator");
+    if (isRegionalUser) {
+      const normExact = (s) => (s || "").trim().toLowerCase().replace(/^kab\.\s*/i, "kabupaten ");
+      if (normExact(currentUser.region) !== normExact(c.kabupaten)) {
+        alert(`AKSES DITOLAK: Anda sedang masuk sebagai petugas ${currentUser.username} (${currentUser.region}).
+
+Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`);
+        return;
+      }
+    }
+
+    this.showView("form-input");
+
+    document.getElementById("form-case-id").value = c.id;
+    if (document.getElementById("form-no-epid")) document.getElementById("form-no-epid").value = c.noEpid || "";
+    if (document.getElementById("form-nik")) document.getElementById("form-nik").value = c.nik || "";
+    if (document.getElementById("form-no-nik-chk")) {
+      document.getElementById("form-no-nik-chk").checked = !!c.hasNoNik;
+      document.getElementById("form-nik").disabled = !!c.hasNoNik;
+    }
+    if (document.getElementById("form-nama")) document.getElementById("form-nama").value = c.nama || "";
+    if (document.getElementById("form-nama-ibu")) document.getElementById("form-nama-ibu").value = c.namaIbu || "";
+    if (document.getElementById("form-tgl-lahir")) document.getElementById("form-tgl-lahir").value = c.tanggalLahir || "";
+    if (document.getElementById("form-tgl-onset")) document.getElementById("form-tgl-onset").value = c.tanggalOnset || "";
+    this.selectGender(c.jenisKelamin === "P" ? "P" : "L");
+    if (document.getElementById("form-alamat")) document.getElementById("form-alamat").value = c.alamat || "";
+    if (document.getElementById("form-kabupaten")) document.getElementById("form-kabupaten").value = c.kabupaten || "";
+    this.populateKecamatanDropdown(c.kabupaten);
+    if (document.getElementById("form-kecamatan")) document.getElementById("form-kecamatan").value = c.kecamatan || "";
+    this.populateKelurahanDropdown(c.kecamatan);
+    if (document.getElementById("form-kelurahan")) document.getElementById("form-kelurahan").value = c.kelurahan || "";
+
+    // Gejala
+    if (document.getElementById("form-demam")) document.getElementById("form-demam").checked = !!c.demam;
+    if (document.getElementById("form-nyeri")) document.getElementById("form-nyeri").checked = !!c.nyeriMenelan;
+    if (document.getElementById("form-bullneck")) document.getElementById("form-bullneck").checked = !!c.bullneck;
+    if (document.getElementById("form-pseudo")) document.getElementById("form-pseudo").checked = !!c.pseudomembran;
+
+    // Imunisasi
+    if (document.getElementById("form-dpt")) document.getElementById("form-dpt").value = c.dpt || "0";
+    if (document.getElementById("form-dt")) document.getElementById("form-dt").value = c.dt || "0";
+    if (document.getElementById("form-td")) document.getElementById("form-td").value = c.td || "0";
+    if (document.getElementById("form-tgl-terakhir-vax")) document.getElementById("form-tgl-terakhir-vax").value = c.tanggalTerakhirVaksinasi !== "-" ? (c.tanggalTerakhirVaksinasi || "") : "";
+    if (document.getElementById("form-sumber-vax")) document.getElementById("form-sumber-vax").value = c.sumberImunisasi || "Buku KIA";
+
+    // Lab
+    if (document.getElementById("form-tgl-ambil-hidung")) document.getElementById("form-tgl-ambil-hidung").value = c.tanggalAmbilHidung !== "-" ? (c.tanggalAmbilHidung || "") : "";
+    if (document.getElementById("form-tgl-ambil-tenggorok")) document.getElementById("form-tgl-ambil-tenggorok").value = c.tanggalAmbilTenggorok !== "-" ? (c.tanggalAmbilTenggorok || "") : "";
+    if (document.getElementById("form-tgl-kirim-hidung")) document.getElementById("form-tgl-kirim-hidung").value = c.tanggalKirimHidung !== "-" ? (c.tanggalKirimHidung || "") : "";
+    if (document.getElementById("form-tgl-kirim-tenggorok")) document.getElementById("form-tgl-kirim-tenggorok").value = c.tanggalKirimTenggorok !== "-" ? (c.tanggalKirimTenggorok || "") : "";
+
+    if (document.getElementById("form-hasil-kultur-hidung")) document.getElementById("form-hasil-kultur-hidung").value = c.hasilKulturHidung || c.hasilKultur || "Pending";
+    if (document.getElementById("form-hasil-kultur-tenggorok")) document.getElementById("form-hasil-kultur-tenggorok").value = c.hasilKulturTenggorok || c.hasilKultur || "Pending";
+    if (document.getElementById("form-varian")) document.getElementById("form-varian").value = c.varian || "-";
+    if (document.getElementById("form-toksigenitas")) document.getElementById("form-toksigenitas").value = c.toksigenitas || "-";
+
+    // Pengobatan
+    if (document.getElementById("form-antibiotik")) {
+      const isKnown = ["Azitromisin", "Eritromisin", "Penisilin Prokain", "Amoksisilin", "Tidak"].includes(c.antibiotik);
+      if (isKnown) {
+        document.getElementById("form-antibiotik").value = c.antibiotik;
+      } else if (c.antibiotik) {
+        document.getElementById("form-antibiotik").value = "Lainnya";
+        if (document.getElementById("form-antibiotik-manual")) {
+          document.getElementById("form-antibiotik-manual").value = c.antibiotik;
+          document.getElementById("box-antibiotik-manual").classList.remove("hidden");
+        }
+      }
+    }
+    if (document.getElementById("form-tgl-antibiotik")) document.getElementById("form-tgl-antibiotik").value = c.tanggalAntibiotik !== "-" ? (c.tanggalAntibiotik || "") : "";
+    if (document.getElementById("form-keadaan")) document.getElementById("form-keadaan").value = c.keadaanAkhir || "Hidup / Sembuh";
+    if (document.getElementById("form-ads")) document.getElementById("form-ads").checked = !!c.adsDiberikan;
+    if (document.getElementById("form-tgl-ads")) document.getElementById("form-tgl-ads").value = c.tanggalADS !== "-" ? (c.tanggalADS || "") : "";
+    if (document.getElementById("form-ads-dosis")) document.getElementById("form-ads-dosis").value = c.adsDosis || "";
+
+    // Kontak
+    if (document.getElementById("form-kontak-rumah")) document.getElementById("form-kontak-rumah").value = c.kontakRumah || c.kontakEratRumah || "";
+    if (document.getElementById("form-prof-rumah")) document.getElementById("form-prof-rumah").value = c.profilaksisRumah || c.kontakEratProfilaksis || "";
+    if (document.getElementById("form-kontak-sekolah")) document.getElementById("form-kontak-sekolah").value = c.kontakSekolah || "";
+    if (document.getElementById("form-prof-sekolah")) document.getElementById("form-prof-sekolah").value = c.profilaksisSekolah || "";
+    if (document.getElementById("form-kontak-tetangga")) document.getElementById("form-kontak-tetangga").value = c.kontakTetangga || "";
+    if (document.getElementById("form-prof-tetangga")) document.getElementById("form-prof-tetangga").value = c.profilaksisTetangga || "";
+    if (document.getElementById("form-kontak-bermain")) document.getElementById("form-kontak-bermain").value = c.kontakBermain || "";
+    if (document.getElementById("form-prof-bermain")) document.getElementById("form-prof-bermain").value = c.profilaksisBermain || "";
+    if (document.getElementById("form-keterangan")) document.getElementById("form-keterangan").value = c.keterangan || "";
+
+    this.updateLabConditionalFields();
+    this.handleAntibiotikChange();
+    this.handleAdsChange();
+    this.updateLiveCalculations();
+  },
+
   // Reset Formulir dan Bersihkan Input (Tanpa Default 0)
   resetFormFields() {
     const form = document.getElementById("main-dif3-form");
     if (form) form.reset();
 
     document.getElementById("form-case-id").value = "";
+    const userCurr = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    if (userCurr && userCurr.region !== "Provinsi Jawa Timur") {
+      const regInput = document.getElementById("form-kabupaten");
+      if (regInput) {
+        regInput.value = userCurr.region;
+        regInput.setAttribute("readonly", "readonly");
+        regInput.classList.add("bg-slate-100", "cursor-not-allowed");
+      }
+      this.populateKecamatanDropdown(userCurr.region);
+    }
+    if (document.getElementById("form-no-epid")) {
+      document.getElementById("form-no-epid").value = userCurr ? window.SIDIF_FORMS.generateNoEpid(userCurr.region) : "";
+    }
+    if (document.getElementById("form-antibiotik")) document.getElementById("form-antibiotik").value = "Azitromisin";
+    this.handleAntibiotikChange();
+    this.handleAdsChange();
+    this.updateLabConditionalFields();
     document.getElementById("form-calc-umur").value = "-";
     document.getElementById("form-calc-dosis").value = "0 Dosis (Belum Pernah)";
     document.getElementById("form-calc-klasifikasi").value = "Suspek Difteri";
@@ -501,10 +695,16 @@ window.SIDIF_APP = {
             <td class="p-3 font-mono font-semibold ${c.hasilKultur === 'Positif' ? 'text-red-700' : 'text-slate-500'}">${c.hasilKultur || "Pending"}</td>
             <td class="p-3">${badgeKeadaan}</td>
             <td class="p-3 text-center">
-              <button onclick="window.SIDIF_EXPORT.viewFormPe('${c.id}')" class="px-3 py-1.5 bg-[#0F7A4F] hover:bg-[#15803D] text-white text-[11px] font-bold rounded shadow-xs flex items-center gap-1 mx-auto">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                <span>Lihat Form PE</span>
-              </button>
+              <div class="flex items-center justify-center gap-1.5">
+                <button type="button" onclick="window.SIDIF_APP.editCase('${c.id}')" class="px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-300 text-[11px] font-bold rounded shadow-2xs flex items-center gap-1 cursor-pointer" title="Edit dan perbarui hasil lab">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  <span>Edit / Update Lab</span>
+                </button>
+                <button type="button" onclick="window.SIDIF_EXPORT.viewFormPe('${c.id}')" class="px-2.5 py-1.5 bg-[#0F7A4F] hover:bg-[#15803D] text-white text-[11px] font-bold rounded shadow-2xs flex items-center gap-1 cursor-pointer" title="Cetak formulir baku DIF-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  <span>Form DIF-1</span>
+                </button>
+              </div>
             </td>
           </tr>
         `;
@@ -608,12 +808,6 @@ window.SIDIF_APP = {
     const ageObj = window.SIDIF_FORMS.calculateAge(tglLahirVal, tglOnsetVal);
     const weekVal = window.SIDIF_FORMS.calculateWeek(tglOnsetVal);
 
-    let noEpidVal = document.getElementById("form-no-epid").value.trim();
-    if (!noEpidVal) {
-      const code = user.username.replace("SIDIF_", "");
-      noEpidVal = `${code}/2026/M${weekVal.toString().padStart(2, "0")}-${Math.floor(100 + Math.random() * 900)}`;
-    }
-
     const tglLaporanVal = document.getElementById("form-tgl-terima-laporan").value || tglOnsetVal;
     const tglPEVal = document.getElementById("form-tgl-pe").value || tglLaporanVal;
     const timelinessPE = window.SIDIF_FORMS.calculateTimelinessPE(tglLaporanVal, tglPEVal);
@@ -628,8 +822,60 @@ window.SIDIF_APP = {
     const hasilKulturT = document.getElementById("form-hasil-kultur-tenggorok").value;
     const hasilKulturOverall = (hasilKulturH === "Positif" || hasilKulturT === "Positif") ? "Positif" : ((hasilKulturH === "Negatif" && hasilKulturT === "Negatif") ? "Negatif" : "Pending");
 
-    const varianVal = document.getElementById("form-varian").value;
-    const toksikVal = document.getElementById("form-toksigenitas").value;
+    // Validasi No. EPID (Identitas Utama Baku Kemenkes)
+    let noEpidVal = document.getElementById("form-no-epid") ? document.getElementById("form-no-epid").value.trim() : "";
+    if (!noEpidVal) {
+      noEpidVal = window.SIDIF_FORMS.generateNoEpid(user.region);
+      if (document.getElementById("form-no-epid")) document.getElementById("form-no-epid").value = noEpidVal;
+    }
+
+    // Validasi Antibiotik & Tanggal Mulai
+    let antibiotikVal = document.getElementById("form-antibiotik") ? document.getElementById("form-antibiotik").value : "Azitromisin";
+    if (antibiotikVal === "Lainnya") {
+      antibiotikVal = document.getElementById("form-antibiotik-manual") ? document.getElementById("form-antibiotik-manual").value.trim() : "Antibiotik Lainnya";
+      if (!antibiotikVal) antibiotikVal = "Antibiotik Lainnya";
+    }
+    const tglAntibiotikVal = document.getElementById("form-tgl-antibiotik") ? document.getElementById("form-tgl-antibiotik").value : "";
+    if (antibiotikVal !== "Tidak" && !tglAntibiotikVal) {
+      alert("Tanggal mulai pemberian antibiotik wajib diisi.");
+      document.getElementById("form-tgl-antibiotik").focus();
+      return;
+    }
+
+    // Validasi ADS (Anti Diphtheria Serum)
+    const adsVal = document.getElementById("form-ads") ? document.getElementById("form-ads").checked : false;
+    const tglAdsVal = document.getElementById("form-tgl-ads") ? document.getElementById("form-tgl-ads").value : "";
+    const dosisAdsVal = document.getElementById("form-ads-dosis") ? document.getElementById("form-ads-dosis").value.trim() : "";
+    if (adsVal) {
+      if (!tglAdsVal) {
+        alert("Tanggal pemberian ADS wajib diisi bila terapi ADS dicentang.");
+        document.getElementById("form-tgl-ads").focus();
+        return;
+      }
+      if (!dosisAdsVal || parseInt(dosisAdsVal, 10) <= 0) {
+        alert("Dosis pemberian ADS (IU) wajib diisi (rekomendasi: 20.000 s/d 80.000 IU).");
+        document.getElementById("form-ads-dosis").focus();
+        return;
+      }
+    }
+
+    // Validasi Kultur Positif -> Varian & Toksigenitas Wajib
+    const isKulturPos = (hasilKulturH === "Positif" || hasilKulturT === "Positif");
+    const varianVal = document.getElementById("form-varian") ? document.getElementById("form-varian").value : "-";
+    const toksikVal = document.getElementById("form-toksigenitas") ? document.getElementById("form-toksigenitas").value : "-";
+
+    if (isKulturPos) {
+      if (!varianVal || varianVal === "-") {
+        alert("Hasil kultur lab positif wajib melengkapi varian C. diphtheriae (Mitis, Gravis, Intermedius, Belfanti).");
+        document.getElementById("form-varian").focus();
+        return;
+      }
+      if (!toksikVal || toksikVal === "-") {
+        alert("Hasil kultur lab positif wajib melengkapi uji toksigenitas (Toksigenik / Non Toksigenik).");
+        document.getElementById("form-toksigenitas").focus();
+        return;
+      }
+    }
     const kontakEpiVal = document.getElementById("form-kontak-epi").checked;
 
     const classObj = window.SIDIF_FORMS.calculateClassification({
@@ -663,7 +909,7 @@ window.SIDIF_APP = {
       alamat: document.getElementById("form-alamat").value.trim(),
       kecamatan: kecVal,
       kelurahan: kelVal,
-      kabupaten: document.getElementById("form-kabupaten").value,
+      kabupaten: (user.region !== "Provinsi Jawa Timur") ? user.region : document.getElementById("form-kabupaten").value,
       provinsi: "Jawa Timur",
       tanggalOnset: tglOnsetVal,
       mingguEpid: weekVal,
