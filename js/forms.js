@@ -270,38 +270,164 @@ window.SIDIF_FORMS = {
     return { isDuplicate: false };
   },
 
-  // 10. Generator Nomor EPID Baku Kemenkes (D - [Kode Prov] [Kode Kab] [Tahun] [No Urut])
-  generateNoEpid(kabupatenName, customSeq = null, year = null) {
-    const yr = year || new Date().getFullYear();
-    const kabCodeMap = {
-      "kabupaten pacitan": "01", "kabupaten ponorogo": "02", "kabupaten trenggalek": "03", "kabupaten tulungagung": "04",
-      "kabupaten blitar": "05", "kabupaten kediri": "06", "kabupaten malang": "07", "kabupaten lumajang": "08",
-      "kabupaten jember": "09", "kabupaten banyuwangi": "10", "kabupaten bondowoso": "11", "kabupaten situbondo": "12",
-      "kabupaten probolinggo": "13", "kabupaten pasuruan": "14", "kabupaten sidoarjo": "15", "kabupaten mojokerto": "16",
-      "kabupaten jombang": "17", "kabupaten nganjuk": "18", "kabupaten madiun": "19", "kabupaten magetan": "20",
-      "kabupaten ngawi": "21", "kabupaten bojonegoro": "22", "kabupaten tuban": "23", "kabupaten lamongan": "24",
-      "kabupaten gresik": "25", "kabupaten bangkalan": "26", "kabupaten sampang": "27", "kabupaten pamekasan": "28",
-      "kabupaten sumenep": "29", "kota kediri": "71", "kota blitar": "72", "kota malang": "73",
-      "kota probolinggo": "74", "kota pasuruan": "75", "kota mojokerto": "76", "kota madiun": "77",
-      "kota surabaya": "78", "kota batu": "79"
+  // 10. Generator & Parser Nomor EPID Baku Kemenkes RI (9 Digit: D - [Prov] [Kab/Kota] [Tahun] [No Urut])
+  // Berdasarkan Standar Permendagri & Petunjuk Teknis Surveilans Difteri Kemenkes RI
+  KODE_WILAYAH_JATIM: {
+    "kabupaten pacitan": { code: "3501", prov: "35", kab: "01", name: "Kabupaten Pacitan", type: "kabupaten" },
+    "kabupaten ponorogo": { code: "3502", prov: "35", kab: "02", name: "Kabupaten Ponorogo", type: "kabupaten" },
+    "kabupaten trenggalek": { code: "3503", prov: "35", kab: "03", name: "Kabupaten Trenggalek", type: "kabupaten" },
+    "kabupaten tulungagung": { code: "3504", prov: "35", kab: "04", name: "Kabupaten Tulungagung", type: "kabupaten" },
+    "kabupaten blitar": { code: "3505", prov: "35", kab: "05", name: "Kabupaten Blitar", type: "kabupaten" },
+    "kabupaten kediri": { code: "3506", prov: "35", kab: "06", name: "Kabupaten Kediri", type: "kabupaten" },
+    "kabupaten malang": { code: "3507", prov: "35", kab: "07", name: "Kabupaten Malang", type: "kabupaten" },
+    "kabupaten lumajang": { code: "3508", prov: "35", kab: "08", name: "Kabupaten Lumajang", type: "kabupaten" },
+    "kabupaten jember": { code: "3509", prov: "35", kab: "09", name: "Kabupaten Jember", type: "kabupaten" },
+    "kabupaten banyuwangi": { code: "3510", prov: "35", kab: "10", name: "Kabupaten Banyuwangi", type: "kabupaten" },
+    "kabupaten bondowoso": { code: "3511", prov: "35", kab: "11", name: "Kabupaten Bondowoso", type: "kabupaten" },
+    "kabupaten situbondo": { code: "3512", prov: "35", kab: "12", name: "Kabupaten Situbondo", type: "kabupaten" },
+    "kabupaten probolinggo": { code: "3513", prov: "35", kab: "13", name: "Kabupaten Probolinggo", type: "kabupaten" },
+    "kabupaten pasuruan": { code: "3514", prov: "35", kab: "14", name: "Kabupaten Pasuruan", type: "kabupaten" },
+    "kabupaten sidoarjo": { code: "3515", prov: "35", kab: "15", name: "Kabupaten Sidoarjo", type: "kabupaten" },
+    "kabupaten mojokerto": { code: "3516", prov: "35", kab: "16", name: "Kabupaten Mojokerto", type: "kabupaten" },
+    "kabupaten jombang": { code: "3517", prov: "35", kab: "17", name: "Kabupaten Jombang", type: "kabupaten" },
+    "kabupaten nganjuk": { code: "3518", prov: "35", kab: "18", name: "Kabupaten Nganjuk", type: "kabupaten" },
+    "kabupaten madiun": { code: "3519", prov: "35", kab: "19", name: "Kabupaten Madiun", type: "kabupaten" },
+    "kabupaten magetan": { code: "3520", prov: "35", kab: "20", name: "Kabupaten Magetan", type: "kabupaten" },
+    "kabupaten ngawi": { code: "3521", prov: "35", kab: "21", name: "Kabupaten Ngawi", type: "kabupaten" },
+    "kabupaten bojonegoro": { code: "3522", prov: "35", kab: "22", name: "Kabupaten Bojonegoro", type: "kabupaten" },
+    "kabupaten tuban": { code: "3523", prov: "35", kab: "23", name: "Kabupaten Tuban", type: "kabupaten" },
+    "kabupaten lamongan": { code: "3524", prov: "35", kab: "24", name: "Kabupaten Lamongan", type: "kabupaten" },
+    "kabupaten gresik": { code: "3525", prov: "35", kab: "25", name: "Kabupaten Gresik", type: "kabupaten" },
+    "kabupaten bangkalan": { code: "3526", prov: "35", kab: "26", name: "Kabupaten Bangkalan", type: "kabupaten" },
+    "kabupaten sampang": { code: "3527", prov: "35", kab: "27", name: "Kabupaten Sampang", type: "kabupaten" },
+    "kabupaten pamekasan": { code: "3528", prov: "35", kab: "28", name: "Kabupaten Pamekasan", type: "kabupaten" },
+    "kabupaten sumenep": { code: "3529", prov: "35", kab: "29", name: "Kabupaten Sumenep", type: "kabupaten" },
+    "kota kediri": { code: "3571", prov: "35", kab: "71", name: "Kota Kediri", type: "kota" },
+    "kota blitar": { code: "3572", prov: "35", kab: "72", name: "Kota Blitar", type: "kota" },
+    "kota malang": { code: "3573", prov: "35", kab: "73", name: "Kota Malang", type: "kota" },
+    "kota probolinggo": { code: "3574", prov: "35", kab: "74", name: "Kota Probolinggo", type: "kota" },
+    "kota pasuruan": { code: "3575", prov: "35", kab: "75", name: "Kota Pasuruan", type: "kota" },
+    "kota mojokerto": { code: "3576", prov: "35", kab: "76", name: "Kota Mojokerto", type: "kota" },
+    "kota madiun": { code: "3577", prov: "35", kab: "77", name: "Kota Madiun", type: "kota" },
+    "kota surabaya": { code: "3578", prov: "35", kab: "78", name: "Kota Surabaya", type: "kota" },
+    "kota batu": { code: "3579", prov: "35", kab: "79", name: "Kota Batu", type: "kota" }
+  },
+
+  // Helper Pencari Metadata Wilayah (Menerima variasi nama kabupaten/kota, singkatan, dll)
+  getRegionMetadata(regionName) {
+    if (!regionName) return { code: "3500", prov: "35", kab: "00", name: "Jawa Timur", type: "provinsi" };
+    let raw = String(regionName).toLowerCase().trim().replace(/^kab\.\s*/i, "kabupaten ");
+    
+    // Pemetaan langsung
+    if (this.KODE_WILAYAH_JATIM[raw]) return this.KODE_WILAYAH_JATIM[raw];
+
+    // Singkatan umum akun SIDIF
+    const aliasMap = {
+      "sda": "kabupaten sidoarjo", "sidoarjo": "kabupaten sidoarjo",
+      "sby": "kota surabaya", "surabaya": "kota surabaya", "sur": "kota surabaya",
+      "gre": "kabupaten gresik", "gresik": "kabupaten gresik",
+      "tub": "kabupaten tuban", "tuban": "kabupaten tuban",
+      "bkl": "kabupaten bangkalan", "bangkalan": "kabupaten bangkalan",
+      "spg": "kabupaten sampang", "sampang": "kabupaten sampang",
+      "pmk": "kabupaten pamekasan", "pamekasan": "kabupaten pamekasan",
+      "smp": "kabupaten sumenep", "sumenep": "kabupaten sumenep",
+      "jbg": "kabupaten jombang", "jombang": "kabupaten jombang",
+      "bwi": "kabupaten banyuwangi", "banyuwangi": "kabupaten banyuwangi",
+      "jbr": "kabupaten jember", "jember": "kabupaten jember",
+      "lmj": "kabupaten lumajang", "lumajang": "kabupaten lumajang",
+      "bjn": "kabupaten bojonegoro", "bojonegoro": "kabupaten bojonegoro",
+      "lmg": "kabupaten lamongan", "lamongan": "kabupaten lamongan",
+      "ngw": "kabupaten ngawi", "ngawi": "kabupaten ngawi",
+      "mgt": "kabupaten magetan", "magetan": "kabupaten magetan",
+      "ngj": "kabupaten nganjuk", "nganjuk": "kabupaten nganjuk",
+      "bdw": "kabupaten bondowoso", "bondowoso": "kabupaten bondowoso",
+      "sit": "kabupaten situbondo", "situbondo": "kabupaten situbondo",
+      "pct": "kabupaten pacitan", "pacitan": "kabupaten pacitan",
+      "po": "kabupaten ponorogo", "ponorogo": "kabupaten ponorogo",
+      "trg": "kabupaten trenggalek", "trenggalek": "kabupaten trenggalek",
+      "ta": "kabupaten tulungagung", "tulungagung": "kabupaten tulungagung",
+      "btu": "kota batu", "batu": "kota batu"
     };
 
-    const clean = (kabupatenName || "").toLowerCase().trim();
-    const kodeKab = kabCodeMap[clean] || "00";
+    if (aliasMap[raw] && this.KODE_WILAYAH_JATIM[aliasMap[raw]]) {
+      return this.KODE_WILAYAH_JATIM[aliasMap[raw]];
+    }
 
-    // Hitung nomor urut kasus di kabupaten ini pada tahun berjalan
+    // Pemindaian parsial dengan perlindungan kab vs kota
+    const entries = Object.entries(this.KODE_WILAYAH_JATIM);
+    for (const [key, val] of entries) {
+      const bareName = key.replace("kabupaten ", "").replace("kota ", "");
+      if (raw.includes(bareName)) {
+        if (raw.includes("kota") && val.type !== "kota") continue;
+        if ((raw.includes("kab") || raw.includes("kabupaten")) && val.type !== "kabupaten") continue;
+        return val;
+      }
+    }
+
+    return { code: "3500", prov: "35", kab: "00", name: regionName, type: "kabupaten" };
+  },
+
+  // Generator Nomor EPID Baku Kemenkes (9 Digit: D-[Prov:2][Kab:2][Tahun:2][Urut:3])
+  generateNoEpid(kabupatenName, customSeq = null, year = null, format = "standard") {
+    const yrFull = year || new Date().getFullYear();
+    const yr2 = String(yrFull).slice(-2);
+    const meta = this.getRegionMetadata(kabupatenName);
+    const provCode = meta.prov || "35";
+    const kabCode = meta.kab || "00";
+
+    // Hitung nomor urut kasus di wilayah ini pada tahun berjalan
     let seq = customSeq;
     if (!seq) {
       const allCases = window.SIDIF_STORE ? window.SIDIF_STORE.getCases() : [];
       const regionalCases = allCases.filter(c => {
-        const isSameKab = (c.kabupaten || "").toLowerCase().trim() === clean;
-        const cYear = (c.tanggalOnset ? new Date(c.tanggalOnset).getFullYear() : (c.createdAt ? new Date(c.createdAt).getFullYear() : yr));
-        return isSameKab && cYear === yr;
+        const cMeta = this.getRegionMetadata(c.kabupaten);
+        const isSame = cMeta.code === meta.code;
+        const cYear = (c.tanggalOnset ? new Date(c.tanggalOnset).getFullYear() : (c.createdAt ? new Date(c.createdAt).getFullYear() : yrFull));
+        return isSame && cYear === yrFull;
       });
       seq = regionalCases.length + 1;
     }
 
     const padSeq = String(seq).padStart(3, "0");
-    return `D-35.${kodeKab}-${yr}-${padSeq}`;
+    const rawCode = `D-${provCode}${kabCode}${yr2}${padSeq}`; // D-351526001 (9 Digit Baku Kemenkes)
+    const segmentedCode = `D-${provCode}.${kabCode}-${yrFull}-${padSeq}`; // D-35.15-2026-001 (Format Readable)
+
+    if (format === "boxes") {
+      return {
+        prefix: "D",
+        prov: provCode,
+        kab: kabCode,
+        year: yr2,
+        seq: padSeq,
+        fullKemendagri: `${provCode}${kabCode}`,
+        raw: rawCode,
+        segmented: segmentedCode,
+        digits: [provCode[0], provCode[1], kabCode[0], kabCode[1], yr2[0], yr2[1], padSeq[0], padSeq[1], padSeq[2]]
+      };
+    }
+
+    if (format === "segmented") {
+      return segmentedCode;
+    }
+
+    return rawCode;
+  },
+
+  // Parse string No. EPID apapun menjadi 9 digit array untuk kotak Form DIF-1
+  parseEpidDigits(noEpidStr) {
+    if (!noEpidStr) return ["3", "5", "0", "0", "2", "6", "0", "0", "1"];
+    const cleanDigits = noEpidStr.replace(/^D[-.]?/i, "").replace(/[^0-9]/g, "");
+    if (cleanDigits.length === 11) {
+      // Format 11 digit: 35 15 2026 001
+      const p = cleanDigits.slice(0, 2);
+      const k = cleanDigits.slice(2, 4);
+      const y = cleanDigits.slice(6, 8); // ambil 26 dari 2026
+      const s = cleanDigits.slice(8, 11);
+      return [p[0], p[1], k[0], k[1], y[0], y[1], s[0], s[1], s[2]];
+    }
+    if (cleanDigits.length >= 9) {
+      return cleanDigits.slice(0, 9).split("");
+    }
+    return (cleanDigits.padEnd(9, "0")).split("");
   }
 };

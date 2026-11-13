@@ -184,7 +184,28 @@ window.SIDIF_EXPORT = {
     window._currentPeFilename = "PE-" + cleanNo;
 
     // Isi template dokumen PE Form DIF-1 Baku Kemenkes
-    if (document.getElementById("pe-no-epid")) document.getElementById("pe-no-epid").innerText = c.noEpid || "-";
+    const epidNo = c.noEpid || (window.SIDIF_FORMS ? window.SIDIF_FORMS.generateNoEpid(c.kabupaten, 1, 2026) : "D-350026001");
+    if (document.getElementById("pe-no-epid")) document.getElementById("pe-no-epid").innerText = epidNo;
+    if (document.getElementById("pe-no-epid-raw")) document.getElementById("pe-no-epid-raw").innerText = epidNo;
+
+    // Render 9 Kotak Digit DIF-1 Resmi Kemenkes
+    const boxesEl = document.getElementById("pe-no-epid-boxes");
+    if (boxesEl && window.SIDIF_FORMS && window.SIDIF_FORMS.parseEpidDigits) {
+      const digits = window.SIDIF_FORMS.parseEpidDigits(epidNo);
+      boxesEl.innerHTML = `
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">D</div>
+        <span class="font-black text-xs mx-0.5">-</span>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[0] || '3'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[1] || '5'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[2] || '0'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[3] || '0'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[4] || '2'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[5] || '6'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[6] || '0'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[7] || '0'}</div>
+        <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">${digits[8] || '1'}</div>
+      `;
+    }
     if (document.getElementById("pe-dif1-kab")) document.getElementById("pe-dif1-kab").innerText = c.kabupaten || "-";
     if (document.getElementById("pe-dif1-pkm")) document.getElementById("pe-dif1-pkm").innerText = c.sumberLaporan || `Puskesmas ${c.kecamatan || c.kabupaten}`;
 

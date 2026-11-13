@@ -655,16 +655,16 @@
           <div class="flex flex-wrap justify-between items-center gap-2 mb-1.5">
             <div class="flex items-center gap-2">
               <label class="block text-sm font-black text-emerald-950 uppercase tracking-wide">Nomor Epidemiologi (No. EPID Kasus)</label>
-              <span class="px-2 py-0.5 bg-[#0F7A4F] text-white text-[10px] font-black rounded uppercase">IDENTITAS UTAMA KEMENKES</span>
+              <span class="px-2 py-0.5 bg-[#0F7A4F] text-white text-[10px] font-black rounded uppercase">IDENTITAS BAKU KEMENKES RI</span>
             </div>
-            <span class="text-xs text-emerald-700 font-semibold font-mono">Format: D - [Prov] [Kab] [Tahun] [No Urut]</span>
+            <span class="text-xs text-emerald-800 font-bold font-mono">Format 9 Digit: D - [Prov: 35][Kab/Kota: 01-79][Thn: 26][Urut: 001]</span>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
             <div class="md:col-span-2">
-              <input type="text" id="form-no-epid" placeholder="D-35.xx-2026-xxx" class="w-full h-12 px-3 bg-white border-2 border-emerald-500 rounded-lg font-mono text-base font-black text-emerald-900 tracking-wider">
+              <input type="text" id="form-no-epid" placeholder="D-351526001 (atau D-35.15-2026-001)" class="w-full h-12 px-3 bg-white border-2 border-emerald-500 rounded-lg font-mono text-base font-black text-emerald-900 tracking-wider">
             </div>
             <div class="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-emerald-200">
-              <p>Sesuai Juknis 2023, No. EPID adalah identitas baku kasus difteri. Otomatis diterbitkan sistem sesuai kode kabupaten & nomor urut tahunan.</p>
+              <p>Sesuai Juknis Surveilans Difteri 2023, No. EPID terdiri dari <strong>9 digit kotak baku</strong>: Kode Provinsi Jatim (35), Kode Wilayah Kab/Kota (3501–3579), 2 digit tahun, dan nomor urut tahunan.</p>
             </div>
           </div>
         </div>
@@ -1716,13 +1716,34 @@
                 <div class="flex"><span class="w-24 font-bold">Puskesmas</span><span>: <span id="pe-dif1-pkm">-</span></span></div>
               </div>
 
-              <!-- Kotak Nomor EPID -->
+              <!-- Kotak Nomor EPID Baku Kemenkes (9 Digit) -->
               <div class="p-2.5 border-2 border-black rounded bg-slate-50">
-                <span class="text-[11px] font-black uppercase block mb-1">NO EPID:</span>
-                <div class="font-mono font-black text-sm tracking-widest text-emerald-950 bg-white p-1.5 border border-black text-center" id="pe-no-epid">
-                  D - 35 . 00 - 2026 - 001
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] font-black uppercase text-slate-900">NO. EPID (BAKU KEMENKES):</span>
+                  <span class="text-[10px] font-bold font-mono text-emerald-800" id="pe-no-epid-raw">D-351526001</span>
                 </div>
-                <span class="text-[9px] text-slate-500 block mt-1 text-center font-sans">Kode Prov (35) - Kode Kab - Tahun Kasus - No Urut (Mulai 001)</span>
+                <!-- 9 Kotak Digit DIF-1 -->
+                <div class="flex items-center justify-center gap-1 font-mono my-1.5" id="pe-no-epid-boxes">
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">D</div>
+                  <span class="font-black text-xs mx-0.5">-</span>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">3</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">5</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">1</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">5</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">2</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">6</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">0</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">0</div>
+                  <div class="w-6 h-7 border border-black bg-white flex items-center justify-center font-black text-sm">1</div>
+                </div>
+                <!-- Keterangan Sub-Kolom 9 Kotak -->
+                <div class="grid grid-cols-4 text-[8px] text-center text-slate-600 font-bold border-t border-slate-300 pt-1 mt-1">
+                  <span>PROV (35)</span>
+                  <span>KAB/KOTA</span>
+                  <span>THN (26)</span>
+                  <span>NO URUT</span>
+                </div>
+                <span id="pe-no-epid" class="hidden font-mono">D-351526001</span>
               </div>
             </div>
 
