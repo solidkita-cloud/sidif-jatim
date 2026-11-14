@@ -14,6 +14,7 @@ window.SIDIF_APP = {
 
   init() {
     this.applySettings();
+    this.loadNotifications();
     this.renderNotifications();
     this.initPresenceAndChat();
 
@@ -1030,6 +1031,7 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
         badge: newCase.klasifikasiKlinis,
         badgeColor: newCase.klasifikasiKlinis === "Difteri Konfirmasi Lab" ? "bg-red-100 text-red-800" : (newCase.klasifikasiKlinis === "Pending" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800")
       });
+      this.saveNotifications();
       this.renderNotifications();
       setTimeout(() => {
         toast.classList.add("hidden");
@@ -1062,38 +1064,24 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
   // Setup Seluruh Event Listeners
   
   // State Notifikasi, Presence Petugas, dan Live Chat Koordinasi
-  notifications: [
-    {
-      id: "notif-1",
-      title: "Konfirmasi Lab Positif Kultur BBLKM",
-      desc: "Kasus an. Sdr. R (Tuban) terkonfirmasi positif C. diphtheriae toksigenik.",
-      time: "15 mnt lalu",
-      region: "Kabupaten Tuban",
-      read: false,
-      badge: "Difteri Konfirmasi Lab",
-      badgeColor: "bg-red-100 text-red-800"
-    },
-    {
-      id: "notif-2",
-      title: "Laporan Kasus Difteri Baru",
-      desc: "Dinkes Kab. Bangkalan melaporkan 1 kasus anak usia 7 th dengan pseudomembran.",
-      time: "40 mnt lalu",
-      region: "Kabupaten Bangkalan",
-      read: false,
-      badge: "Pending",
-      badgeColor: "bg-blue-100 text-blue-800"
-    },
-    {
-      id: "notif-3",
-      title: "Peringatan Respon PE Segera",
-      desc: "Kasus suspek di Kab. Sampang memerlukan penyelesaian formulir PE < 24 jam.",
-      time: "1 jam lalu",
-      region: "Kabupaten Sampang",
-      read: true,
-      badge: "Kompatibel Klinis",
-      badgeColor: "bg-amber-100 text-amber-800"
+  notifications: [],
+
+  loadNotifications() {
+    const raw = localStorage.getItem("sidif_alerts_v3");
+    if (raw) {
+      try {
+        this.notifications = JSON.parse(raw);
+        return;
+      } catch(e) {}
     }
-  ],
+    this.notifications = [];
+  },
+
+  saveNotifications() {
+    try {
+      localStorage.setItem("sidif_alerts_v3", JSON.stringify(this.notifications));
+    } catch(e) {}
+  },
 
   // Handler Notifikasi Dropdown
   toggleNotificationDropdown() {
@@ -1111,7 +1099,29 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     if (!container) return;
 
     const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
-    const isKabupaten = user && (user.type === "kabupaten" || user.type === "kota" || user.role === "operator");
+
+    // PRIVASI MEDIS: Jika belum login, sembunyikan counter dan kunci isi notifikasi
+    if (!user) {
+      if (counterEl) {
+        counterEl.classList.add("hidden");
+        counterEl.innerText = "0";
+      }
+      container.innerHTML = `
+        <div class="p-6 text-center text-slate-500">
+          <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m0 0v2m0-2h2m-2 0H10m4-6a4 4 0 10-8 0v3l-2 2h12l-2-2V9z"/></svg>
+          </div>
+          <p class="font-bold text-slate-800 text-xs mb-1">Akses Notifikasi Terkunci</p>
+          <p class="text-[11px] text-slate-500 mb-3 leading-relaxed">Peringatan surveilans dan laporan kasus bersifat terbatas. Silakan masuk menggunakan akun resmi petugas Kabupaten/Kota atau Provinsi.</p>
+          <button type="button" onclick="document.getElementById('notification-dropdown').classList.add('hidden'); window.SIDIF_APP.toggleLoginBar();" class="px-3.5 py-1.5 bg-[#0F7A4F] hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition cursor-pointer">
+            Masuk / Login Petugas
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    const isKabupaten = (user.type === "kabupaten" || user.type === "kota" || user.role === "operator");
     const normExact = (s) => (s || "").trim().toLowerCase().replace(/^kab\.\s*/i, "kabupaten ");
     const normUserReg = isKabupaten ? normExact(user.region) : "";
 
@@ -1135,7 +1145,7 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     }
 
     if (visibleNotifications.length === 0) {
-      container.innerHTML = `<div class="p-6 text-center text-slate-400">Tidak ada notifikasi aktif untuk wilayah ${isKabupaten ? user.region : 'Jawa Timur'}.</div>`;
+      container.innerHTML = `<div class="p-6 text-center text-slate-400">Tidak ada notifikasi baru untuk wilayah ${isKabupaten ? user.region : 'Jawa Timur'}.</div>`;
       return;
     }
 
@@ -1159,6 +1169,7 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
 
   markAllNotificationsRead() {
     this.notifications.forEach(n => n.read = true);
+    this.saveNotifications();
     this.renderNotifications();
   },
 
@@ -1166,6 +1177,7 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     const n = this.notifications.find(x => x.id === notifId);
     if (n) {
       n.read = true;
+      this.saveNotifications();
       this.renderNotifications();
       const dropdown = document.getElementById("notification-dropdown");
       if (dropdown) dropdown.classList.add("hidden");
