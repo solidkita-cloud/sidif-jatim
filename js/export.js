@@ -16,6 +16,77 @@ window.SIDIF_EXPORT = {
     return true;
   },
 
+  // Penerapan Garis Hitam Tegas & Format Ramah Mata ("POV 50th"):
+  // Setiap sel diberi garis hitam pekat (solid black border), header navy kontras, format ribuan ber-titik
+  applyPov50ExcelStyling(ws, options = {}) {
+    if (!ws || !ws["!ref"] || typeof XLSX === "undefined") return;
+
+    let range;
+    try {
+      range = XLSX.utils.decode_range(ws["!ref"]);
+    } catch (e) {
+      return;
+    }
+
+    const blackBorder = {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } }
+    };
+
+    const doubleBottomBorder = {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "double", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } }
+    };
+
+    const hasGrandTotal = options.hasGrandTotal !== false;
+
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      const isHeader = (R === range.s.r);
+      const isGrandTotal = hasGrandTotal && (R === range.e.r);
+      const isEven = (R % 2 === 0);
+
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellAddress]) {
+          ws[cellAddress] = { t: "s", v: "" };
+        }
+        const cell = ws[cellAddress];
+
+        if (isHeader) {
+          cell.s = {
+            font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "1E293B" } }, // Dark Slate
+            alignment: { vertical: "center", horizontal: "center", wrapText: true },
+            border: blackBorder
+          };
+        } else if (isGrandTotal) {
+          cell.s = {
+            font: { name: "Calibri", sz: 11, bold: true, color: { rgb: "000000" } },
+            fill: { fgColor: { rgb: "FEF08A" } }, // Amber Lembut
+            alignment: { vertical: "center", horizontal: (cell.t === "n" ? "right" : (C <= 2 ? "left" : "center")) },
+            border: doubleBottomBorder
+          };
+        } else {
+          cell.s = {
+            font: { name: "Calibri", sz: 11, color: { rgb: "000000" } },
+            fill: isEven ? { fgColor: { rgb: "F8FAFC" } } : { fgColor: { rgb: "FFFFFF" } },
+            alignment: { vertical: "center", horizontal: (cell.t === "n" ? "right" : (C <= 2 ? "left" : "center")) },
+            border: blackBorder
+          };
+        }
+
+        // Format angka ribuan khas Indonesia
+        if (cell.t === "n") {
+          cell.z = "#,##0";
+        }
+      }
+    }
+  },
+
   // 1A. Unduh Tabel Rekap per Kabupaten: Jumlah Positif & Jumlah Kontak Erat (+ ADS, Meninggal, Profilaksis)
   exportRekapKabupatenExcel() {
     if (!this.checkSuperAdminAuth()) return;
@@ -123,6 +194,9 @@ window.SIDIF_EXPORT = {
 
     const wscols = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length + 3, 14) }));
     ws["!cols"] = wscols;
+
+    // Terapkan garis hitam tegas & styling POV 50th
+    this.applyPov50ExcelStyling(ws, { hasGrandTotal: true });
 
     const dateStr = new Date().toISOString().substring(0, 10);
     const fileName = `Rekap_Difteri_38_KabKota_Jatim_Positif_KontakErat_${dateStr}.xlsx`;
@@ -254,10 +328,12 @@ window.SIDIF_EXPORT = {
     const wb = XLSX.utils.book_new();
     const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
     wsSummary["!cols"] = [{ wch: 35 }, { wch: 30 }];
+    this.applyPov50ExcelStyling(wsSummary, { hasGrandTotal: false });
     XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan Agregat");
 
     const wsCases = XLSX.utils.json_to_sheet(caseRows);
     wsCases["!cols"] = Object.keys(caseRows[0]).map(k => ({ wch: Math.max(k.length + 2, 12) }));
+    this.applyPov50ExcelStyling(wsCases, { hasGrandTotal: false });
     XLSX.utils.book_append_sheet(wb, wsCases, "Daftar Kasus Terfilter");
 
     const regLabel = region.replace(/\s+/g, "_");
@@ -365,9 +441,10 @@ window.SIDIF_EXPORT = {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "List Kasus Form DIF-3");
 
-    // Format lebar kolom 53 Kolom
+    // Format lebar kolom 53 Kolom & Garis Hitam Tegas POV 50th
     const wscols = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length + 2, 12) }));
     ws["!cols"] = wscols;
+    this.applyPov50ExcelStyling(ws, { hasGrandTotal: false });
 
     const wilayahLabel = specificRegion ? specificRegion.replace(/\s+/g, "_") : "Jawa_Timur";
     const dateStr = new Date().toISOString().substring(0, 10);
@@ -416,6 +493,8 @@ window.SIDIF_EXPORT = {
     ];
 
     const ws = XLSX.utils.json_to_sheet(pptRows);
+    ws["!cols"] = [{ wch: 45 }, { wch: 30 }, { wch: 45 }];
+    this.applyPov50ExcelStyling(ws, { hasGrandTotal: false });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Bahan Paparan Pimpinan PPT");
 

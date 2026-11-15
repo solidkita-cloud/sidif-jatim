@@ -29,11 +29,11 @@ window.SIDIF_APP = {
   // Terapkan Pengaturan Identitas Situs
   applySettings() {
     const settings = window.SIDIF_STORE.getSettings();
-    const siteName = settings.appName || "SIDIF";
-    const subTitle = settings.welcomeText || "Sistem Data Imunisasi & Surveilans Difteri Jawa Timur";
+    const siteName = settings.appName || "E-SIDIF";
+    const subTitle = settings.welcomeText || "ELEKTRONIK SISTEM INFORMASI DIFTERI";
     document.querySelectorAll(".site-name-display").forEach(el => el.innerText = siteName);
     document.querySelectorAll(".site-subtitle-display").forEach(el => el.innerText = subTitle);
-    document.title = `${siteName} — Dinas Kesehatan Provinsi Jawa Timur`;
+    document.title = `${siteName} — Elektronik Sistem Informasi Difteri Jawa Timur`;
   },
 
   // Navigasi Tampilan Antarmuka
@@ -118,6 +118,12 @@ window.SIDIF_APP = {
       }
       if (notifDropdown) notifDropdown.classList.add("hidden");
     }
+
+    // Segarkan identitas pengirim pada modul chat real-time
+    const chatSenderEl = document.getElementById("chat-current-sender");
+    const chatRoleEl = document.getElementById("chat-current-role");
+    if (chatSenderEl) chatSenderEl.innerText = user ? `${user.username} (${user.region})` : "Dinkes Provinsi (Super Admin)";
+    if (chatRoleEl) chatRoleEl.innerText = user ? (user.role || "OPERATOR").toUpperCase() : "PROVINSI";
 
     // Segarkan data dan notifikasi sesuai hak akses akun
     this.renderNotifications();
@@ -347,6 +353,86 @@ window.SIDIF_APP = {
       if (selToksik) { selToksik.value = "-"; selToksik.setAttribute("disabled", "disabled"); }
     }
     this.updateLiveCalculations();
+  },
+
+  // Perhitungan dan Validasi Real-Time pada Form Input (Umur, Imunisasi, Timeliness PE, Klasifikasi)
+  updateLiveCalculations() {
+    const tglLahir = document.getElementById("form-tgl-lahir") ? document.getElementById("form-tgl-lahir").value : "";
+    const tglOnset = document.getElementById("form-tgl-onset") ? document.getElementById("form-tgl-onset").value : "";
+    const tglLaporan = document.getElementById("form-tgl-terima-laporan") ? document.getElementById("form-tgl-terima-laporan").value : "";
+    const tglPE = document.getElementById("form-tgl-pe") ? document.getElementById("form-tgl-pe").value : "";
+
+    // 1. Umur Pasien Real-Time
+    let age = { years: 0, months: 0, text: "-" };
+    if (tglLahir && window.SIDIF_FORMS) {
+      age = window.SIDIF_FORMS.calculateAge(tglLahir, tglOnset || new Date().toISOString().substring(0, 10));
+      const elUmur = document.getElementById("form-calc-umur");
+      if (elUmur) elUmur.value = age.text;
+    }
+
+    // 2. Status Imunisasi Sesuai Aturan Juknis Kemenkes (<1 th lengkap jika >=3, 1-5 th lengkap jika >=4)
+    const dpt = document.getElementById("form-dpt") ? document.getElementById("form-dpt").value : "0";
+    const dt = document.getElementById("form-dt") ? document.getElementById("form-dt").value : "0";
+    const td = document.getElementById("form-td") ? document.getElementById("form-td").value : "0";
+    if (window.SIDIF_FORMS) {
+      const doses = window.SIDIF_FORMS.calculateDoses(dpt, dt, td, age.years, age.months);
+      const elDosis = document.getElementById("form-calc-dosis");
+      if (elDosis) {
+        elDosis.value = `${doses.total} Dosis (${doses.statusImunisasi || doses.status})`;
+        const stLower = (doses.statusImunisasi || doses.status || "").toLowerCase();
+        if (stLower.includes("lengkap") && !stLower.includes("belum")) {
+          elDosis.className = "w-full h-11 px-3 bg-emerald-50 border-2 border-emerald-400 rounded text-xs font-black text-emerald-800";
+        } else if (stLower.includes("tidak")) {
+          elDosis.className = "w-full h-11 px-3 bg-rose-50 border-2 border-rose-300 rounded text-xs font-bold text-rose-800";
+        } else {
+          elDosis.className = "w-full h-11 px-3 bg-amber-50 border-2 border-amber-300 rounded text-xs font-bold text-amber-800";
+        }
+      }
+    }
+
+    // 3. Minggu Epidemiologi
+    if (tglOnset && window.SIDIF_FORMS) {
+      const epiWeek = window.SIDIF_FORMS.calculateWeek(tglOnset);
+      const elWeek = document.getElementById("form-calc-minggu-epid");
+      if (elWeek) elWeek.value = epiWeek;
+    }
+
+    // 4. Timeliness PE (< 24 Jam atau < 48 Jam Sesuai Juknis)
+    if (tglLaporan && tglPE && window.SIDIF_FORMS) {
+      const timeliness = window.SIDIF_FORMS.calculateTimelinessPE(tglLaporan, tglPE);
+      const elTime = document.getElementById("form-calc-timeliness-pe");
+      if (elTime) {
+        elTime.value = timeliness;
+        if (timeliness.includes("< 24") || timeliness.includes("< 48")) {
+          elTime.className = "w-full h-11 px-3 bg-emerald-50 border-2 border-emerald-400 rounded text-xs font-black text-[#0F7A4F]";
+        } else {
+          elTime.className = "w-full h-11 px-3 bg-rose-50 border-2 border-rose-300 rounded text-xs font-bold text-rose-700";
+        }
+      }
+    }
+
+    // 5. Klasifikasi Kasus Baku Kemenkes (Hubungan Epidemiologi & Lab)
+    const kHidung = document.getElementById("form-hasil-kultur-hidung") ? document.getElementById("form-hasil-kultur-hidung").value : "Pending";
+    const kTenggorok = document.getElementById("form-hasil-kultur-tenggorok") ? document.getElementById("form-hasil-kultur-tenggorok").value : "Pending";
+    const kontakEpi = document.getElementById("form-kontak-epi") ? document.getElementById("form-kontak-epi").checked : false;
+
+    let overallKultur = "Pending";
+    if (kHidung === "Positif" || kTenggorok === "Positif") overallKultur = "Positif";
+    else if (kHidung === "Negatif" && kTenggorok === "Negatif") overallKultur = "Negatif";
+
+    if (window.SIDIF_FORMS) {
+      const classRes = window.SIDIF_FORMS.calculateClassification({
+        hasilKulturHidung: kHidung,
+        hasilKulturTenggorok: kTenggorok,
+        hasilKultur: overallKultur,
+        hubunganEpidemiologi: kontakEpi
+      });
+      const elKlas = document.getElementById("form-calc-klasifikasi");
+      if (elKlas) {
+        elKlas.value = classRes.kategori;
+        elKlas.className = `w-full h-11 px-3 rounded text-sm font-black transition border-2 ${classRes.badgeClass || 'bg-blue-50 text-blue-700 border-blue-300'}`;
+      }
+    }
   },
 
   // Kontrol Input Antibiotik (Azitromisin, Eritromisin, Manual, & Validasi Tanggal)
@@ -1684,11 +1770,11 @@ window.SIDIF_APP = {
     if (!feed) return;
 
     const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
-    const myName = currentUser ? currentUser.username : "Dinkes Provinsi";
+    const currentUsername = currentUser ? currentUser.username : null;
 
     feed.innerHTML = this.chatMessages.map(m => {
       const isBot = !!m.isBot;
-      const isMe = !isBot && (m.sender.includes(myName) || m.isMe);
+      const isMe = !isBot && currentUsername && (m.senderUsername === currentUsername || (m.sender && m.sender.startsWith(currentUsername)));
 
       if (isBot) {
         return `
@@ -1740,18 +1826,18 @@ window.SIDIF_APP = {
     const textVal = input.value.trim();
     const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     const sender = user ? user.username : "Petugas Tamu";
-    const role = user ? (user.type === "provinsi" ? "PROVINSI" : "KAB/KOTA") : "OPERATOR";
+    const role = user ? (user.role === "superadmin" || user.type === "provinsi" ? "PROVINSI" : "KAB/KOTA") : "OPERATOR";
     const region = user ? user.region : "Jawa Timur";
 
     const userMsg = {
       id: "msg-" + Date.now(),
       sender: `${sender} (${region})`,
+      senderUsername: user ? user.username : "GUEST",
       role: role,
       region: region,
       text: textVal,
       time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
-      timestamp: Date.now(),
-      isMe: true
+      timestamp: Date.now()
     };
 
     this.chatMessages.push(userMsg);
@@ -1790,7 +1876,7 @@ window.SIDIF_APP = {
   generateEpidemiologyAnswer(queryText) {
     const q = queryText.toLowerCase();
     const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
-    const isRegional = currentUser && (currentUser.type === "kabupaten" || currentUser.type === "kota") && currentUser.region && currentUser.region !== "Jawa Timur";
+    const isRegional = currentUser && (currentUser.type === "kabupaten" || currentUser.type === "kota" || currentUser.role === "operator") && currentUser.region && !currentUser.region.toLowerCase().includes("provinsi");
     const userRegion = isRegional ? currentUser.region : null;
 
     const allCases = window.SIDIF_STORE.getCases();
@@ -1807,6 +1893,8 @@ window.SIDIF_APP = {
     const specificRegMatch = regionalKeywords.find(reg => q.includes(reg));
     const asksJatimExplicit = q.includes("jatim") || q.includes("jawa timur") || q.includes("seluruh") || q.includes("provinsi") || q.includes("semua");
 
+    const norm = (s) => (s || "").toLowerCase().replace(/^(kabupaten|kota)\s+/i, "").trim();
+
     // Tentukan wilayah acuan data (Default: Wilayah akun login jika ada, atau seluruh Jatim)
     let activeRegion = "Jawa Timur";
     let activeCases = allCases;
@@ -1814,7 +1902,7 @@ window.SIDIF_APP = {
       activeCases = allCases.filter(c => (c.kabupaten || "").toLowerCase().includes(specificRegMatch));
       activeRegion = activeCases[0]?.kabupaten || specificRegMatch.toUpperCase();
     } else if (isRegional && !asksJatimExplicit) {
-      activeCases = allCases.filter(c => c.kabupaten === userRegion);
+      activeCases = allCases.filter(c => norm(c.kabupaten) === norm(userRegion));
       activeRegion = userRegion;
     }
 

@@ -509,22 +509,22 @@ window.SIDIF_CHARTS = {
     const elKb = document.getElementById("contact-kb-num");
     const elProf = document.getElementById("contact-prof-pct");
 
-    if (elTot) elTot.innerText = `${tot} Orang`;
+    if (elTot) elTot.innerText = `${tot.toLocaleString('id-ID')} (100%)`;
     if (elKr) {
       const pctKr = tot > 0 ? ((kr / tot) * 100).toFixed(1) : "0";
-      elKr.innerText = `${kr} (${pctKr}%)`;
+      elKr.innerText = `${kr.toLocaleString('id-ID')} (${pctKr}%)`;
     }
     if (elKs) {
       const pctKs = tot > 0 ? ((ks / tot) * 100).toFixed(1) : "0";
-      elKs.innerText = `${ks} (${pctKs}%)`;
+      elKs.innerText = `${ks.toLocaleString('id-ID')} (${pctKs}%)`;
     }
     if (elKt) {
       const pctKt = tot > 0 ? ((kt / tot) * 100).toFixed(1) : "0";
-      elKt.innerText = `${kt} (${pctKt}%)`;
+      elKt.innerText = `${kt.toLocaleString('id-ID')} (${pctKt}%)`;
     }
     if (elKb) {
       const pctKb = tot > 0 ? ((kb / tot) * 100).toFixed(1) : "0";
-      elKb.innerText = `${kb} (${pctKb}%)`;
+      elKb.innerText = `${kb.toLocaleString('id-ID')} (${pctKb}%)`;
     }
     if (elProf) {
       const pctProf = tot > 0 ? ((totProf / tot) * 100).toFixed(1) : "0";
@@ -543,13 +543,29 @@ window.SIDIF_CHARTS = {
     try {
       // Map judul resmi grafik berdasarkan canvasId
       const titleMap = {
+        "chart-epi-curve": {
+          title: "KURVA EPIDEMIOLOGI KASUS DIFTERI JAWA TIMUR (MINGGU M1 - M43)",
+          sub: "Distribusi Kasus Berdasarkan Tanggal Onset Gejala & Klasifikasi Kasus Resmi Kemenkes"
+        },
         "chart-weekly": {
-          title: "KURVA EPIDEMIOLOGI DIFTERI JAWA TIMUR (MINGGU M1 - M43 TAHUN 2026)",
-          sub: "Distribusi Kasus Berdasarkan Tanggal Onset Gejala & Klasifikasi Kasus"
+          title: "KURVA EPIDEMIOLOGI KASUS DIFTERI JAWA TIMUR (MINGGU M1 - M43)",
+          sub: "Distribusi Kasus Berdasarkan Tanggal Onset Gejala & Klasifikasi Kasus Resmi Kemenkes"
+        },
+        "chart-stacked-imunisasi-umur": {
+          title: "STATUS IMUNISASI DIFTERI MENURUT KELOMPOK UMUR",
+          sub: "Analisis Kesenjangan Imunitas (Immunity Gap) Sesuai Bahan Evaluasi Pimpinan"
+        },
+        "chart-age-group": {
+          title: "DISTRIBUSI KASUS DIFTERI MENURUT KELOMPOK USIA TAHUN 2026",
+          sub: "Proporsi Kasus Terbanyak pada Usia > 14 Tahun & Usia Balita (1-4 Tahun)"
         },
         "chart-age": {
           title: "DISTRIBUSI KASUS DIFTERI MENURUT KELOMPOK USIA TAHUN 2026",
-          sub: "Proporsi Kasus Difteri Terbanyak pada Usia > 14 Tahun & Usia Balita (1-4 Tahun)"
+          sub: "Proporsi Kasus Terbanyak pada Usia > 14 Tahun & Usia Balita (1-4 Tahun)"
+        },
+        "chart-donut-imunisasi": {
+          title: "PROPORSI STATUS IMUNISASI PADA KASUS DIFTERI",
+          sub: "Proporsi Kasus Difteri: Tidak Diimunisasi, Belum Lengkap, dan Lengkap"
         },
         "chart-immunization": {
           title: "PROFIL STATUS IMUNISASI PENDERITA DIFTERI JAWA TIMUR",
@@ -567,7 +583,7 @@ window.SIDIF_CHARTS = {
 
       const meta = titleMap[canvasId] || {
         title: "LAPORAN SURVEILANS DIFTERI JAWA TIMUR TAHUN 2026",
-        sub: "Sistem Informasi Surveilans Imunisasi & Difteri Terintegrasi (SIDIF-2)"
+        sub: "E-SIDIF • Elektronik Sistem Informasi Difteri Terintegrasi"
       };
 
       // Buat canvas resolusi ultra-tinggi (2x-3x Scale untuk kebutuhan slide presentasi tajam)
