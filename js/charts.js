@@ -56,22 +56,28 @@ window.SIDIF_CHARTS = {
     }
 
     this.epiCurveChart = new Chart(ctx, {
-      type: "bar",
+      type: "line",
       data: {
         labels: labels,
         datasets: [{
           label: "Jumlah Kasus Difteri",
           data: counts,
-          backgroundColor: counts.map((cnt, idx) => {
-            if (idx === 22) return "#B91C1C"; // Puncak M23 (Merah Gelap)
-            return cnt > 0 ? "#DC2626" : "#E2E8F0";
+          borderColor: "#DC2626",
+          backgroundColor: "rgba(220, 38, 38, 0.10)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: counts.map((cnt, idx) => {
+            if (idx === 22) return "#7F1D1D"; // Puncak M23 (Merah Gelap)
+            return cnt > 0 ? "#DC2626" : "#CBD5E1";
           }),
-          borderColor: counts.map((cnt, idx) => {
-            if (idx === 22) return "#7F1D1D";
-            return cnt > 0 ? "#991B1B" : "#CBD5E1";
+          pointBorderColor: "#FFFFFF",
+          pointBorderWidth: 2,
+          pointRadius: counts.map((cnt, idx) => {
+            if (idx === 22) return 6; // Titik puncak lebih besar
+            return cnt > 0 ? 3.5 : 1.5;
           }),
-          borderWidth: 1,
-          borderRadius: 4
+          pointHoverRadius: 7
         }]
       },
       options: {

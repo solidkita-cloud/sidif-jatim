@@ -81,6 +81,9 @@ window.SIDIF_APP = {
     const notifContainer = document.getElementById("notification-container");
     const onlineBadge = document.getElementById("online-users-badge");
     const notifDropdown = document.getElementById("notification-dropdown");
+    const adminExportBtn = document.getElementById("header-admin-export-btn");
+
+    const isSuperAdmin = user && (user.role === "superadmin" || user.username === "SIDIF_PROV");
 
     if (user) {
       if (loginBtn) loginBtn.classList.add("hidden");
@@ -90,8 +93,12 @@ window.SIDIF_APP = {
         this.updateMyPresence("Online di Sistem");
       }
       if (navWorklist) navWorklist.classList.remove("hidden");
-      if (navAdmin && (user.role === "superadmin" || user.role === "admin")) {
+      if (navAdmin && isSuperAdmin) {
         navAdmin.classList.remove("hidden");
+      }
+      if (adminExportBtn) {
+        if (isSuperAdmin) adminExportBtn.classList.remove("hidden");
+        else adminExportBtn.classList.add("hidden");
       }
       if (notifContainer) notifContainer.classList.remove("hidden");
       if (onlineBadge) {
@@ -103,6 +110,7 @@ window.SIDIF_APP = {
       if (userBadge) userBadge.classList.add("hidden");
       if (navWorklist) navWorklist.classList.add("hidden");
       if (navAdmin) navAdmin.classList.add("hidden");
+      if (adminExportBtn) adminExportBtn.classList.add("hidden");
       if (notifContainer) notifContainer.classList.add("hidden");
       if (onlineBadge) {
         onlineBadge.classList.add("hidden");
@@ -271,16 +279,17 @@ window.SIDIF_APP = {
     const kpiKontakEl = document.getElementById("kpi-kontak");
     const kpiSubKontakEl = document.getElementById("kpi-sub-kontak");
 
-    if (kpiTotalEl) kpiTotalEl.innerHTML = `${totalKasus} <span class="text-xs font-normal text-slate-500">Kasus</span>`;
-    if (kpiSubEl) kpiSubEl.innerText = `Lab: ${konfirmasi} | Klinis: ${klinis}`;
+    const fmtKpi = (n) => (n || 0).toLocaleString("id-ID");
+    if (kpiTotalEl) kpiTotalEl.innerHTML = `${fmtKpi(totalKasus)} <span class="text-xs font-normal text-slate-500">Kasus</span>`;
+    if (kpiSubEl) kpiSubEl.innerText = `Lab: ${fmtKpi(konfirmasi)} | Klinis: ${fmtKpi(klinis)}`;
     if (kpiPrEl) kpiPrEl.innerText = `${pr}%`;
-    if (kpiSubPrEl) kpiSubPrEl.innerText = `${konfirmasi} Positif dari ${totalLabExamined} Diperiksa Lab`;
+    if (kpiSubPrEl) kpiSubPrEl.innerText = `${fmtKpi(konfirmasi)} Positif dari ${fmtKpi(totalLabExamined)} Diperiksa Lab`;
     if (kpiCfrEl) kpiCfrEl.innerText = `${cfr}%`;
-    if (kpiSubCfrEl) kpiSubCfrEl.innerText = `${meninggal} Kasus Meninggal`;
+    if (kpiSubCfrEl) kpiSubCfrEl.innerText = `${fmtKpi(meninggal)} Kasus Meninggal`;
     if (kpiAdsEl) kpiAdsEl.innerText = `${adsPct}%`;
-    if (kpiSubAdsEl) kpiSubAdsEl.innerText = `${adsCount} dari ${totalKasus} Kasus Diberi ADS`;
-    if (kpiKontakEl) kpiKontakEl.innerText = `${kr} Orang`;
-    if (kpiSubKontakEl) kpiSubKontakEl.innerText = `${profKr} Diberi Profilaksis`;
+    if (kpiSubAdsEl) kpiSubAdsEl.innerText = `${fmtKpi(adsCount)} dari ${fmtKpi(totalKasus)} Kasus Diberi ADS`;
+    if (kpiKontakEl) kpiKontakEl.innerText = `${fmtKpi(kr)} Orang`;
+    if (kpiSubKontakEl) kpiSubKontakEl.innerText = `${fmtKpi(profKr)} Diberi Profilaksis`;
 
     // Render Ulang Seluruh Grafik (Kurva M1-M43, Usia, Imunisasi, Gender, Kontak)
     if (window.SIDIF_CHARTS) {
@@ -690,44 +699,93 @@ window.SIDIF_APP = {
   },
 
   // Update Kartu Rincian Wilayah di Sisi Kanan Peta
+  // Tampilkan Rincian 4 Indikator Wilayah Terpilih pada Kartu Samping Peta
   updateRegionDetailCard(data, displayName) {
     const cardName = document.getElementById("card-region-name");
-    const cardBadge = document.getElementById("card-region-badge");
-    const cardStatus = document.getElementById("card-region-status");
     const cardKasus = document.getElementById("card-region-kasus");
-    const cardVax = document.getElementById("card-region-vax");
-    const cardPuskesmas = document.getElementById("card-region-puskesmas");
+    const cardPositif = document.getElementById("card-region-positif");
+    const cardAds = document.getElementById("card-region-ads");
+    const cardMeninggal = document.getElementById("card-region-meninggal");
     const cardExpl = document.getElementById("card-region-explanation");
 
     if (!cardName) return;
 
+    const fmt = (n) => (n || 0).toLocaleString("id-ID");
     cardName.innerText = displayName;
-    const cases = data.kasus || 0;
-    cardKasus.innerText = `${cases} Kasus`;
-    
-    const vaxPct = data.targetBalita > 0 ? Math.round((data.dpt3 / data.targetBalita) * 100) : 0;
-    cardVax.innerText = `${vaxPct}%`;
-    cardPuskesmas.innerText = `${data.puskesmasLapor || 0} / ${data.puskesmasTotal || 0} Puskesmas`;
 
-    if (cases === 0) {
-      cardBadge.className = "px-2.5 py-1 bg-emerald-100 text-emerald-800 font-bold text-xs rounded";
-      cardBadge.innerText = "Bebas Kasus (Aman)";
-      cardStatus.innerText = "Nol Kasus Aktif";
-      cardStatus.className = "font-bold text-emerald-700";
-      cardExpl.innerText = `Wilayah ${displayName} tidak melaporkan temuan kasus difteri aktif dalam 14 hari terakhir. Cakupan imunisasi balita dalam pengawasan rutin dinas.`;
-    } else if (data.kasusKonfirmasi > 0) {
-      cardBadge.className = "px-2.5 py-1 bg-red-100 text-red-800 font-bold text-xs rounded";
-      cardBadge.innerText = "KLB Terkonfirmasi";
-      cardStatus.innerText = "Ada Kasus Positif Kultur Lab BBLKM";
-      cardStatus.className = "font-bold text-red-600";
-      cardExpl.innerText = `Ditemukan ${data.kasusKonfirmasi} kasus konfirmasi positif kuman toksigenik. Penyelidikan epidemiologi dan pemberian profilaksis kontak serumah telah dituntaskan.`;
-    } else {
-      cardBadge.className = "px-2.5 py-1 bg-amber-100 text-amber-800 font-bold text-xs rounded";
-      cardBadge.innerText = "Sinyal Kompatibel Klinis";
-      cardStatus.innerText = "Kasus Klinis dengan Pseudomembran";
-      cardStatus.className = "font-bold text-amber-700";
-      cardExpl.innerText = `Wilayah melaporkan ${cases} kasus dengan tanda klinis khas difteri. Spesimen usap telah dikirimkan ke laboratorium rujukan BBLKM Surabaya.`;
+    let m = data || {};
+    if ((m.positif === undefined || m.ads === undefined || m.meninggal === undefined) && window.SIDIF_MAP && window.SIDIF_MAP.getRegionMetrics) {
+      m = window.SIDIF_MAP.getRegionMetrics(displayName);
     }
+
+    if (cardKasus) cardKasus.innerText = `${fmt(m.kasus)} Kasus`;
+    if (cardPositif) cardPositif.innerText = `${fmt(m.positif)} Kasus`;
+    if (cardAds) cardAds.innerText = `${fmt(m.ads)} Kasus`;
+    if (cardMeninggal) cardMeninggal.innerText = `${fmt(m.meninggal)} Kasus`;
+
+    if (cardExpl) {
+      if (m.kasus === 0) {
+        cardExpl.innerText = `Wilayah ${displayName} tidak melaporkan temuan kasus difteri aktif. Cakupan imunisasi balita dalam pengawasan rutin dinas.`;
+      } else if (m.positif > 0) {
+        cardExpl.innerText = `Ditemukan ${fmt(m.positif)} kasus konfirmasi positif kuman toksigenik (KLB). Penyelidikan epidemiologi, pelacakan kontak erat, dan pemberian terapi ADS telah dituntaskan.`;
+      } else {
+        cardExpl.innerText = `Wilayah melaporkan ${fmt(m.kasus)} kasus dengan tanda klinis khas difteri. Spesimen usap dalam pemantauan laboratorium rujukan BBLKM Surabaya.`;
+      }
+    }
+  },
+
+  // Modal Handler Khusus Super Admin: Ekspor Data & Laporan Surveilans
+  openSuperAdminExportModal() {
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    if (!user || (user.role !== "superadmin" && user.username !== "SIDIF_PROV")) {
+      alert("Akses Terbatas: Hanya Super Admin Dinas Kesehatan Provinsi Jawa Timur yang berwenang membuka portal unduh laporan eksekutif.");
+      return;
+    }
+
+    const modal = document.getElementById("modal-superadmin-export");
+    if (!modal) return;
+
+    // Sinkronkan daftar 38 Kabupaten / Kota pada dropdown filter
+    const selEl = document.getElementById("export-filter-region");
+    if (selEl && window.SIDIF_FORMS && selEl.options.length <= 1) {
+      const regions = Object.values(window.SIDIF_FORMS.KODE_WILAYAH_JATIM).sort((a,b) => parseInt(a.code,10) - parseInt(b.code,10));
+      selEl.innerHTML = `<option value="all">Seluruh Jawa Timur (38 Kab/Kota)</option>` + 
+        regions.map(r => `<option value="${r.name}">${r.code} - ${r.name}</option>`).join("");
+    }
+
+    modal.classList.remove("hidden");
+  },
+
+  handleExportPeriodTypeChange(val) {
+    const boxMonth = document.getElementById("export-box-month");
+    const boxQuarter = document.getElementById("export-box-quarter");
+    const boxCustom = document.getElementById("export-box-custom");
+
+    if (boxMonth) boxMonth.classList.add("hidden");
+    if (boxQuarter) boxQuarter.classList.add("hidden");
+    if (boxCustom) boxCustom.classList.add("hidden");
+
+    if (val === "month" && boxMonth) boxMonth.classList.remove("hidden");
+    if (val === "quarter" && boxQuarter) boxQuarter.classList.remove("hidden");
+    if (val === "custom" && boxCustom) boxCustom.classList.remove("hidden");
+  },
+
+  triggerCustomExportSubmit() {
+    const region = document.getElementById("export-filter-region") ? document.getElementById("export-filter-region").value : "all";
+    const periodType = document.getElementById("export-filter-period-type") ? document.getElementById("export-filter-period-type").value : "all";
+    const month = document.getElementById("export-filter-month") ? document.getElementById("export-filter-month").value : "1";
+    const quarter = document.getElementById("export-filter-quarter") ? document.getElementById("export-filter-quarter").value : "1";
+    const startDate = document.getElementById("export-filter-start-date") ? document.getElementById("export-filter-start-date").value : "";
+    const endDate = document.getElementById("export-filter-end-date") ? document.getElementById("export-filter-end-date").value : "";
+
+    window.SIDIF_EXPORT.exportCustomRekapExcel({
+      region,
+      periodType,
+      month,
+      quarter,
+      startDate,
+      endDate
+    });
   },
 
   // Filter Tabel Kasus Form DIF-3

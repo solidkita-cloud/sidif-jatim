@@ -6,9 +6,272 @@
  */
 
 window.SIDIF_EXPORT = {
-  // 1. Ekspor Master Form DIF-3 (53 Kolom Lengkap Sesuai Master Kemenkes/Dinkes Jatim)
+  // Validasi Hak Akses Eksekutif: Hanya Super Admin Dinkes Provinsi yang Diizinkan Mengunduh Data Rekap
+  checkSuperAdminAuth() {
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    if (!user || (user.role !== "superadmin" && user.username !== "SIDIF_PROV")) {
+      alert("Akses Terbatas: Berkas laporan surveilans berstatus data medis rahasia. Fitur unduh laporan hanya dapat diakses oleh akun Super Admin Dinas Kesehatan Provinsi Jawa Timur.");
+      return false;
+    }
+    return true;
+  },
+
+  // 1A. Unduh Tabel Rekap per Kabupaten: Jumlah Positif & Jumlah Kontak Erat (+ ADS, Meninggal, Profilaksis)
+  exportRekapKabupatenExcel() {
+    if (!this.checkSuperAdminAuth()) return;
+
+    const allCases = window.SIDIF_STORE ? window.SIDIF_STORE.getCases({ statusAdmin: "Terverifikasi" }) : [];
+    const kodeMap = window.SIDIF_FORMS ? window.SIDIF_FORMS.KODE_WILAYAH_JATIM : {};
+
+    // Urutkan 38 Kab/Kota berdasarkan kode wilayah Kemendagri (3501 - 3579)
+    const regions = Object.values(kodeMap).sort((a, b) => parseInt(a.code, 10) - parseInt(b.code, 10));
+
+    let grandTotalKasus = 0;
+    let grandTotalPositif = 0;
+    let grandTotalKlinis = 0;
+    let grandTotalMeninggal = 0;
+    let grandTotalAds = 0;
+    let grandTotalKontak = 0;
+    let grandTotalProf = 0;
+
+    const rows = regions.map((r, idx) => {
+      const bareName = r.name.replace(/^Kabupaten\s+/i, "").replace(/^Kota\s+/i, "").toLowerCase();
+      const regionalCases = allCases.filter(c => {
+        const cKab = (c.kabupaten || "").replace(/^Kabupaten\s+/i, "").replace(/^Kota\s+/i, "").trim().toLowerCase();
+        return cKab === bareName || cKab.includes(bareName);
+      });
+
+      const totalKasus = regionalCases.length;
+      const positif = regionalCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
+      const klinis = regionalCases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis" || c.klasifikasiKlinis === "Difteri Kompatibel Klinis" || (!c.hasilKultur && c.klasifikasiKlinis !== "Konfirmasi Lab")).length;
+      const meninggal = regionalCases.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
+      const cfr = totalKasus > 0 ? ((meninggal / totalKasus) * 100).toFixed(1) + "%" : "0.0%";
+      const ads = regionalCases.filter(c => c.adsDiberikan).length;
+      const adsPct = totalKasus > 0 ? ((ads / totalKasus) * 100).toFixed(1) + "%" : "0.0%";
+
+      // Hitung total kontak erat & profilaksis
+      let kontakCount = 0;
+      let profCount = 0;
+      regionalCases.forEach(c => {
+        const kr = parseInt(c.kontakRumah || c.kontakEratRumah || 0, 10);
+        const ks = parseInt(c.kontakSekolah || 0, 10);
+        const kt = parseInt(c.kontakTetangga || 0, 10);
+        const kb = parseInt(c.kontakBermain || 0, 10);
+        kontakCount += (kr + ks + kt + kb);
+
+        const prKr = parseInt(c.profilaksisRumah || c.kontakEratProfilaksis || 0, 10);
+        const prKs = parseInt(c.profilaksisSekolah || 0, 10);
+        const prKt = parseInt(c.profilaksisTetangga || 0, 10);
+        const prKb = parseInt(c.profilaksisBermain || 0, 10);
+        profCount += (prKr + prKs + prKt + prKb);
+      });
+
+      const profPct = kontakCount > 0 ? ((profCount / kontakCount) * 100).toFixed(1) + "%" : "0.0%";
+      const statusWilayah = positif > 0 ? "KLB Difteri (Konfirmasi Lab)" : (totalKasus > 0 ? "Sinyal Kompatibel Klinis" : "Bebas Kasus (0 Kasus)");
+
+      grandTotalKasus += totalKasus;
+      grandTotalPositif += positif;
+      grandTotalKlinis += klinis;
+      grandTotalMeninggal += meninggal;
+      grandTotalAds += ads;
+      grandTotalKontak += kontakCount;
+      grandTotalProf += profCount;
+
+      return {
+        "No": idx + 1,
+        "Kode Kemendagri": r.code,
+        "Kabupaten / Kota": r.name,
+        "Total Kasus Difteri": totalKasus,
+        "Jumlah Konfirmasi Lab (Positif Toksigenik)": positif,
+        "Jumlah Kompatibel Klinis": klinis,
+        "Jumlah Meninggal Dunia": meninggal,
+        "Case Fatality Rate (CFR)": cfr,
+        "Kasus Diberi ADS": ads,
+        "Cakupan Terapi ADS": adsPct,
+        "Jumlah Kontak Erat Terlacak": kontakCount,
+        "Kontak Diberi Profilaksis (Eritromisin)": profCount,
+        "Cakupan Profilaksis Kontak": profPct,
+        "Status Epidemiologi Wilayah": statusWilayah
+      };
+    });
+
+    // Baris Total Jawa Timur
+    const grandCfr = grandTotalKasus > 0 ? ((grandTotalMeninggal / grandTotalKasus) * 100).toFixed(1) + "%" : "0.0%";
+    const grandAdsPct = grandTotalKasus > 0 ? ((grandTotalAds / grandTotalKasus) * 100).toFixed(1) + "%" : "0.0%";
+    const grandProfPct = grandTotalKontak > 0 ? ((grandTotalProf / grandTotalKontak) * 100).toFixed(1) + "%" : "0.0%";
+
+    rows.push({
+      "No": "",
+      "Kode Kemendagri": "3500",
+      "Kabupaten / Kota": "TOTAL PROVINSI JAWA TIMUR",
+      "Total Kasus Difteri": grandTotalKasus,
+      "Jumlah Konfirmasi Lab (Positif Toksigenik)": grandTotalPositif,
+      "Jumlah Kompatibel Klinis": grandTotalKlinis,
+      "Jumlah Meninggal Dunia": grandTotalMeninggal,
+      "Case Fatality Rate (CFR)": grandCfr,
+      "Kasus Diberi ADS": grandTotalAds,
+      "Cakupan Terapi ADS": grandAdsPct,
+      "Jumlah Kontak Erat Terlacak": grandTotalKontak,
+      "Kontak Diberi Profilaksis (Eritromisin)": grandTotalProf,
+      "Cakupan Profilaksis Kontak": grandProfPct,
+      "Status Epidemiologi Wilayah": "KLB Provinsi Terpantau"
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rekap 38 Kab-Kota");
+
+    const wscols = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length + 3, 14) }));
+    ws["!cols"] = wscols;
+
+    const dateStr = new Date().toISOString().substring(0, 10);
+    const fileName = `Rekap_Difteri_38_KabKota_Jatim_Positif_KontakErat_${dateStr}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    window.SIDIF_STORE.logAudit("USER_EXPORT", "EXPORT_REKAP_KABKOTA", `Super Admin mengunduh ${fileName}`);
+  },
+
+  // 1B. Unduh Rekap Kasus dengan Filter Fleksibel: Wilayah, Per Bulan, Per Tiga Bulan, atau Periode Tertentu
+  exportCustomRekapExcel(options = {}) {
+    if (!this.checkSuperAdminAuth()) return;
+
+    const { region = "all", periodType = "all", month = "1", quarter = "1", startDate = "", endDate = "" } = options;
+    let cases = window.SIDIF_STORE ? window.SIDIF_STORE.getCases() : [];
+
+    // Filter Wilayah
+    if (region && region !== "all" && region !== "Jawa Timur" && region !== "Provinsi Jawa Timur") {
+      const cleanReg = region.replace(/^Kabupaten\s+/i, "").replace(/^Kota\s+/i, "").trim().toLowerCase();
+      cases = cases.filter(c => {
+        const cKab = (c.kabupaten || "").replace(/^Kabupaten\s+/i, "").replace(/^Kota\s+/i, "").trim().toLowerCase();
+        return cKab === cleanReg || cKab.includes(cleanReg);
+      });
+    }
+
+    // Filter Periode Waktu
+    let periodLabel = "Semua_Periode";
+    if (periodType === "month") {
+      const mNum = parseInt(month, 10); // 1-12
+      const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      periodLabel = `Bulan_${monthNames[mNum - 1] || month}`;
+      cases = cases.filter(c => {
+        const dateStr = c.tanggalOnset || c.tanggalLaporanDiterima;
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return (d.getMonth() + 1) === mNum;
+      });
+    } else if (periodType === "quarter") {
+      const qNum = String(quarter);
+      periodLabel = `Triwulan_${qNum}`;
+      cases = cases.filter(c => {
+        const dateStr = c.tanggalOnset || c.tanggalLaporanDiterima;
+        if (!dateStr) return false;
+        const m = new Date(dateStr).getMonth();
+        if (qNum === "1") return m >= 0 && m <= 2;
+        if (qNum === "2") return m >= 3 && m <= 5;
+        if (qNum === "3") return m >= 6 && m <= 8;
+        if (qNum === "4") return m >= 9 && m <= 11;
+        return true;
+      });
+    } else if (periodType === "custom") {
+      periodLabel = `Periode_${startDate}_sd_${endDate}`;
+      const start = startDate ? new Date(startDate).getTime() : 0;
+      const end = endDate ? new Date(endDate).getTime() : Infinity;
+      cases = cases.filter(c => {
+        const dateStr = c.tanggalOnset || c.tanggalLaporanDiterima;
+        if (!dateStr) return false;
+        const t = new Date(dateStr).getTime();
+        return t >= start && t <= end;
+      });
+    }
+
+    if (cases.length === 0) {
+      alert(`Tidak ada data kasus yang memenuhi kriteria filter: Wilayah ${region}, Periode ${periodLabel.replace(/_/g, " ")}.`);
+      return;
+    }
+
+    // Sheet 1: Ringkasan Agregat
+    const totalK = cases.length;
+    const konf = cases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
+    const klin = cases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis" || c.klasifikasiKlinis === "Difteri Kompatibel Klinis" || (!c.hasilKultur && c.klasifikasiKlinis !== "Konfirmasi Lab")).length;
+    const dth = cases.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
+    const ads = cases.filter(c => c.adsDiberikan).length;
+    let totKontak = 0;
+    let totProf = 0;
+    cases.forEach(c => {
+      totKontak += (parseInt(c.kontakRumah || c.kontakEratRumah || 0, 10) + parseInt(c.kontakSekolah || 0, 10) + parseInt(c.kontakTetangga || 0, 10) + parseInt(c.kontakBermain || 0, 10));
+      totProf += (parseInt(c.profilaksisRumah || c.kontakEratProfilaksis || 0, 10) + parseInt(c.profilaksisSekolah || 0, 10) + parseInt(c.profilaksisTetangga || 0, 10) + parseInt(c.profilaksisBermain || 0, 10));
+    });
+
+    const summaryRows = [
+      { "Indikator Rekapitulasi": "Parameter Wilayah", "Nilai": region === "all" ? "Seluruh Jawa Timur" : region },
+      { "Indikator Rekapitulasi": "Periode Laporan", "Nilai": periodLabel.replace(/_/g, " ") },
+      { "Indikator Rekapitulasi": "Total Kasus Terdata", "Nilai": totalK },
+      { "Indikator Rekapitulasi": "Kasus Konfirmasi Lab (Positif Toksigenik)", "Nilai": konf },
+      { "Indikator Rekapitulasi": "Kasus Kompatibel Klinis", "Nilai": klin },
+      { "Indikator Rekapitulasi": "Jumlah Kematian (Meninggal Dunia)", "Nilai": dth },
+      { "Indikator Rekapitulasi": "Case Fatality Rate (CFR)", "Nilai": totalK > 0 ? ((dth / totalK) * 100).toFixed(1) + "%" : "0.0%" },
+      { "Indikator Rekapitulasi": "Kasus Diberi Terapi ADS", "Nilai": ads },
+      { "Indikator Rekapitulasi": "Cakupan Terapi ADS", "Nilai": totalK > 0 ? ((ads / totalK) * 100).toFixed(1) + "%" : "0.0%" },
+      { "Indikator Rekapitulasi": "Jumlah Kontak Erat Terdata", "Nilai": totKontak },
+      { "Indikator Rekapitulasi": "Kontak Erat Diberi Profilaksis", "Nilai": totProf },
+      { "Indikator Rekapitulasi": "Cakupan Kemoprofilaksis Kontak", "Nilai": totKontak > 0 ? ((totProf / totKontak) * 100).toFixed(1) + "%" : "0.0%" }
+    ];
+
+    // Sheet 2: Daftar Kasus 53 Kolom Lengkap
+    const caseRows = cases.map((c, idx) => ({
+      "No": idx + 1,
+      "Nomor Epidemiologi": c.noEpid || "-",
+      "Nama Lengkap Pasien": c.nama || "-",
+      "Umur (Tahun)": c.umurTahun !== undefined ? c.umurTahun : "-",
+      "Umur (Bulan)": c.umurBulan !== undefined ? c.umurBulan : "-",
+      "Jenis Kelamin (L/P)": c.jenisKelamin || "-",
+      "Alamat": c.alamat || "-",
+      "Kecamatan": c.kecamatan || "-",
+      "Kabupaten / Kota": c.kabupaten || "-",
+      "Provinsi": c.provinsi || "Jawa Timur",
+      "Tanggal Mulai Sakit (Onset)": c.tanggalOnset || "-",
+      "Demam": c.demam ? "Ya" : "Tidak",
+      "Nyeri Telan": c.nyeriMenelan ? "Ya" : "Tidak",
+      "Bullneck": c.bullneck ? "Ya" : "Tidak",
+      "Pseudomembran": c.pseudomembran ? "Ya" : "Tidak",
+      "DPT Dosis": c.dpt || "0",
+      "DT Dosis": c.dt || "0",
+      "Td Dosis": c.td || "0",
+      "Total Dosis Imunisasi": c.totalDosis !== undefined ? c.totalDosis : 0,
+      "Hasil Kultur Lab": c.hasilKultur || "Pending",
+      "Uji Toksigenitas": c.toksigenitas || "-",
+      "Hubungan Epidemiologi": c.hubunganEpidemiologi ? "Ya" : "Tidak",
+      "Klasifikasi Difteri": c.klasifikasiKlinis || "Suspek",
+      "Antibiotik": c.antibiotik || "Tidak",
+      "Pemberian ADS": c.adsDiberikan ? "Ya" : "Tidak",
+      "Dosis ADS (IU)": c.adsDosis || 0,
+      "Keadaan Akhir": c.keadaanAkhir || "Hidup / Sembuh",
+      "Kontak Serumah": c.kontakRumah || c.kontakEratRumah || 0,
+      "Profilaksis Serumah": c.profilaksisRumah || c.kontakEratProfilaksis || 0,
+      "Total Kontak Erat": (parseInt(c.kontakRumah||0,10) + parseInt(c.kontakSekolah||0,10) + parseInt(c.kontakTetangga||0,10) + parseInt(c.kontakBermain||0,10))
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+    wsSummary["!cols"] = [{ wch: 35 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan Agregat");
+
+    const wsCases = XLSX.utils.json_to_sheet(caseRows);
+    wsCases["!cols"] = Object.keys(caseRows[0]).map(k => ({ wch: Math.max(k.length + 2, 12) }));
+    XLSX.utils.book_append_sheet(wb, wsCases, "Daftar Kasus Terfilter");
+
+    const regLabel = region.replace(/\s+/g, "_");
+    const dateStr = new Date().toISOString().substring(0, 10);
+    const fileName = `Rekap_Kasus_${regLabel}_${periodLabel}_${dateStr}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    window.SIDIF_STORE.logAudit("USER_EXPORT", "EXPORT_CUSTOM_REKAP", `Super Admin mengunduh ${fileName} (${caseRows.length} kasus)`);
+  },
+
+  // 1C. Ekspor Master Form DIF-3 (53 Kolom Lengkap Sesuai Master Kemenkes/Dinkes Jatim)
   // Mendukung Filter Wilayah & Rekapitulasi per Triwulan (Triwulan 1 s/d 4)
   exportToExcel(specificRegion = null, quarter = "all") {
+    if (!this.checkSuperAdminAuth()) return;
     let cases = window.SIDIF_STORE.getCases();
     
     if (specificRegion && specificRegion !== "all" && specificRegion !== "Jawa Timur" && specificRegion !== "Provinsi Jawa Timur") {
@@ -116,6 +379,7 @@ window.SIDIF_EXPORT = {
 
   // 2. Ekspor Bahan Paparan Presentasi (Ringkasan Indikator untuk Slide PowerPoint Sesuai Slide 1-9)
   exportToPresentationData() {
+    if (!this.checkSuperAdminAuth()) return;
     const cases = window.SIDIF_STORE.getCases({ statusAdmin: "Terverifikasi" });
     const totalKasus = cases.length;
     const konfirmasi = cases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;

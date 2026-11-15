@@ -64,34 +64,78 @@ window.SIDIF_MAP = {
         }
       }).addTo(this.mapInstance);
 
-      // Default kartu samping: Ringkasan Jawa Timur
+      // Default kartu samping: Ringkasan Jawa Timur & perbarui legenda
       this.showProvinceSummaryCard();
+      this.updateLegendCounts();
 
     } catch (err) {
       console.error("Gagal memuat peta Jawa Timur:", err);
     }
   },
 
+  // Helper Perhitungan Metrik 4 Indikator Baku per Wilayah / Jawa Timur
+  getRegionMetrics(regionName) {
+    const allCases = window.SIDIF_STORE ? window.SIDIF_STORE.getCases({ statusAdmin: "Terverifikasi" }) : [];
+    const cleanTarget = (regionName || "").replace(/^Kabupaten\s+/i, "").replace(/^Kota\s+/i, "").trim().toLowerCase();
+    
+    if (!regionName || cleanTarget === "all" || cleanTarget === "jawa timur" || cleanTarget === "seluruh jawa timur" || cleanTarget === "provinsi jawa timur") {
+      const kasus = allCases.length;
+      const positif = allCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
+      const ads = allCases.filter(c => c.adsDiberikan).length;
+      const meninggal = allCases.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
+      return { kasus, positif, ads, meninggal };
+    }
+
+    const regional = allCases.filter(c => {
+      const cKab = (c.kabupaten || "").replace(/^Kabupaten\s+/i, "").replace(/^Kota\s+/i, "").trim().toLowerCase();
+      return cKab === cleanTarget || cKab.includes(cleanTarget);
+    });
+
+    const kasus = regional.length;
+    const positif = regional.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
+    const ads = regional.filter(c => c.adsDiberikan).length;
+    const meninggal = regional.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
+    return { kasus, positif, ads, meninggal };
+  },
+
+  // Perbarui Angka dan Persentase pada Legenda Peta Depan
+  updateLegendCounts() {
+    let klbKabCount = 0;
+    let klinisKabCount = 0;
+    let bebasKabCount = 0;
+    const totalKabKota = 38;
+
+    Object.values(this.regionsData).forEach(w => {
+      if ((w.kasusKonfirmasi || 0) > 0) {
+        klbKabCount++;
+      } else if ((w.kasusKlinis || 0) > 0 || (w.kasus || 0) > 0) {
+        klinisKabCount++;
+      } else {
+        bebasKabCount++;
+      }
+    });
+
+    const mProv = this.getRegionMetrics("Seluruh Jawa Timur");
+    const fmt = (n) => (n || 0).toLocaleString("id-ID");
+
+    const pKlb = ((klbKabCount / totalKabKota) * 100).toFixed(1).replace(".", ",");
+    const pKlinis = ((klinisKabCount / totalKabKota) * 100).toFixed(1).replace(".", ",");
+    const pBebas = ((bebasKabCount / totalKabKota) * 100).toFixed(1).replace(".", ",");
+
+    const elTotal = document.getElementById("legend-total-kasus");
+    const elKlb = document.getElementById("legend-klb-count");
+    const elKlinis = document.getElementById("legend-klinis-count");
+    const elBebas = document.getElementById("legend-bebas-count");
+
+    if (elTotal) elTotal.innerText = fmt(mProv.kasus);
+    if (elKlb) elKlb.innerText = `${fmt(klbKabCount)} Kab/Kota (${pKlb}%)`;
+    if (elKlinis) elKlinis.innerText = `${fmt(klinisKabCount)} Kab/Kota (${pKlinis}%)`;
+    if (elBebas) elBebas.innerText = `${fmt(bebasKabCount)} Kab/Kota (${pBebas}%)`;
+  },
+
   // Tampilkan Kartu Ringkasan Seluruh Provinsi Jawa Timur
   showProvinceSummaryCard() {
-    const cases = window.SIDIF_STORE.getCases({ statusAdmin: "Terverifikasi" });
-    const totalKasus = cases.length;
-    const konfirmasi = cases.filter(c => c.klasifikasiKlinis === "Konfirmasi Lab").length;
-    const klinis = cases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis").length;
-    const meninggal = cases.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
-    const cfr = totalKasus > 0 ? ((meninggal / totalKasus) * 100).toFixed(1) : "0.0";
-
-    const dataProvinsi = {
-      kasus: totalKasus,
-      kasusKonfirmasi: konfirmasi,
-      kasusKlinis: klinis,
-      dpt3: 3150000,
-      targetBalita: 3400000,
-      puskesmasLapor: 972,
-      puskesmasTotal: 972,
-      meninggal: meninggal,
-      cfr: cfr
-    };
+    const dataProvinsi = this.getRegionMetrics("Seluruh Jawa Timur");
     window.SIDIF_APP.updateRegionDetailCard(dataProvinsi, "Seluruh Jawa Timur (Provinsi)");
   },
 
@@ -183,18 +227,20 @@ window.SIDIF_MAP = {
       layer.setStyle(style);
     });
 
-    // Perbarui kartu detail wilayah yang aktif
+    // Perbarui kartu detail wilayah yang aktif & angka legenda
+    this.updateLegendCounts();
     if (this.selectedLayer) {
       const cleanName = (this.selectedLayer.feature.properties.cleanName || this.selectedLayer.feature.properties.name || "").toLowerCase();
       const displayName = this.selectedLayer.feature.properties.displayName || this.selectedLayer.feature.properties.name;
-      const data = this.regionsData[cleanName] || { kasus: 0, dpt3: 0, targetBalita: 10000 };
+      const data = this.getRegionMetrics(displayName);
       window.SIDIF_APP.updateRegionDetailCard(data, displayName);
     }
   },
 
   // Logika Pewarnaan Sesuai Arahan Pimpinan & PRD:
+  // Garis batas antar wilayah dibuat lebih tipis (weight: 1) dan putus-putus (dashArray: '3, 4')
   // 1. MERAH: Ada kasus konfirmasi kultur lab positif (KLB)
-  // 2. PINK: Ada kasus tapi hasil lab negatif / belum lab (Kompatibel Klinis)
+  // 2. SOFT PEACH/AMBER: Ada kasus klinis tapi lab negatif / pending
   // 3. PUTIH: Tidak ada kasus sama sekali (0 Kasus / Bebas Difteri)
   getFeatureStyle(feature) {
     const rawName = (feature.properties.name || feature.properties.cleanName || "").toLowerCase();
@@ -204,20 +250,22 @@ window.SIDIF_MAP = {
     if (data.kasusKonfirmasi > 0) {
       return {
         fillColor: "#DC2626",
-        weight: 2,
-        opacity: 1,
-        color: "#991B1B",
+        weight: 1,
+        dashArray: "3, 4",
+        opacity: 0.9,
+        color: "#7F1D1D",
         fillOpacity: 0.85
       };
     }
 
-    // B. Warna Soft Warm Peach/Amber: Ada kasus tapi kultur negatif / suspek / pending (Kompatibel Klinis)
+    // B. Warna Soft Warm Peach/Amber: Kompatibel Klinis
     if (data.kasusKlinis > 0 || data.kasus > 0) {
       return {
         fillColor: "#FED7AA",
-        weight: 1.5,
-        opacity: 1,
-        color: "#F97316",
+        weight: 1,
+        dashArray: "3, 4",
+        opacity: 0.9,
+        color: "#EA580C",
         fillOpacity: 0.85
       };
     }
@@ -225,8 +273,9 @@ window.SIDIF_MAP = {
     // C. Putih Bersih: Bebas Kasus (0 Kasus)
     return {
       fillColor: "#FFFFFF",
-      weight: 1.2,
-      opacity: 1,
+      weight: 1,
+      dashArray: "3, 4",
+      opacity: 0.85,
       color: "#94A3B8",
       fillOpacity: 0.9
     };
@@ -236,11 +285,11 @@ window.SIDIF_MAP = {
     const self = this;
     const displayName = feature.properties.displayName || feature.properties.name;
     const cleanName = (feature.properties.cleanName || feature.properties.name || "").toLowerCase();
-    const data = self.regionsData[cleanName] || { kasus: 0, dpt3: 0, targetBalita: 10000 };
+    const fmt = (n) => (n || 0).toLocaleString("id-ID");
 
     // Tooltip Mengambang saat Hover
-    const kasusCount = data.kasus || 0;
-    const tooltipText = `<strong>${displayName}</strong><br>Total Kasus: ${kasusCount} | DPT3: ${Math.round((data.dpt3/data.targetBalita)*100)}%`;
+    const statsHover = self.getRegionMetrics(displayName);
+    const tooltipText = `<strong>${displayName}</strong><br>Total Kasus: ${fmt(statsHover.kasus)} | Positif Lab: ${fmt(statsHover.positif)}`;
     layer.bindTooltip(tooltipText, { sticky: true, className: "text-xs font-sans" });
 
     // Event Hover & Click
@@ -248,8 +297,9 @@ window.SIDIF_MAP = {
       mouseover: function(e) {
         const l = e.target;
         l.setStyle({
-          weight: 3,
+          weight: 2,
           color: "#0F7A4F",
+          dashArray: "",
           fillOpacity: 0.95
         });
         l.bringToFront();
@@ -257,7 +307,7 @@ window.SIDIF_MAP = {
       mouseout: function(e) {
         self.geoJsonLayer.resetStyle(e.target);
         if (self.selectedLayer) {
-          self.selectedLayer.setStyle({ weight: 4, color: "#0F7A4F" });
+          self.selectedLayer.setStyle({ weight: 2.5, color: "#0F7A4F", dashArray: "" });
         }
       },
       click: function(e) {
@@ -266,15 +316,50 @@ window.SIDIF_MAP = {
         }
         self.selectedLayer = e.target;
         self.selectedLayer.setStyle({
-          weight: 4,
-          color: "#0F7A4F"
+          weight: 2.5,
+          color: "#0F7A4F",
+          dashArray: ""
         });
 
-        // Update Dropdown Wilayah & Filter Dashboard
+        // Ambil metrik real-time 4 indikator saat diklik
+        const m = self.getRegionMetrics(displayName);
+
+        // Munculkan popup Leaflet dengan 4 rincian wajib bertitik ribuan
+        const popupHtml = `
+          <div class="p-2.5 font-sans min-w-[210px] text-xs">
+            <div class="border-b border-slate-200 pb-1.5 mb-2">
+              <h4 class="font-black text-sm text-slate-800 leading-tight">${displayName}</h4>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block ${m.positif > 0 ? 'bg-red-100 text-red-700' : (m.kasus > 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700')}">
+                ${m.positif > 0 ? 'KLB Difteri (Konfirmasi Lab)' : (m.kasus > 0 ? 'Kompatibel Klinis' : 'Bebas Kasus (0 Kasus)')}
+              </span>
+            </div>
+            <div class="space-y-1.5">
+              <div class="flex justify-between items-center py-0.5 border-b border-slate-100">
+                <span class="text-slate-600 font-medium">Jumlah Kasus:</span>
+                <strong class="text-slate-900 font-black">${fmt(m.kasus)}</strong>
+              </div>
+              <div class="flex justify-between items-center py-0.5 border-b border-slate-100">
+                <span class="text-slate-600 font-medium">Jumlah Positif:</span>
+                <strong class="text-red-600 font-black">${fmt(m.positif)}</strong>
+              </div>
+              <div class="flex justify-between items-center py-0.5 border-b border-slate-100">
+                <span class="text-slate-600 font-medium">Jumlah Penggunaan ADS:</span>
+                <strong class="text-blue-700 font-black">${fmt(m.ads)}</strong>
+              </div>
+              <div class="flex justify-between items-center py-0.5">
+                <span class="text-slate-600 font-medium">Jumlah Meninggal:</span>
+                <strong class="text-slate-900 font-black">${fmt(m.meninggal)}</strong>
+              </div>
+            </div>
+          </div>
+        `;
+        layer.bindPopup(popupHtml, { maxWidth: 280, closeButton: false, offset: [0, -5] }).openPopup();
+
+        // Update Dropdown Wilayah & Filter Dashboard serta Kartu Rincian Samping
         if (window.SIDIF_APP && window.SIDIF_APP.onRegionSelectedFromMap) {
           window.SIDIF_APP.onRegionSelectedFromMap(displayName);
         } else {
-          window.SIDIF_APP.updateRegionDetailCard(data, displayName);
+          window.SIDIF_APP.updateRegionDetailCard(m, displayName);
         }
       }
     });
