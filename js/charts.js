@@ -526,7 +526,7 @@ window.SIDIF_CHARTS = {
     }
   },
 
-  // 6. Ekspor Grafik ke Gambar PNG (Latar Belakang Putih Bersih untuk Bahan Paparan PowerPoint)
+  // 6. Ekspor Grafik Eksekutif Resolusi Tinggi (Format Presentasi Resmi Dinas Kesehatan)
   downloadChart(canvasId, defaultFilename = "grafik-surveilans-difteri") {
     const canvas = document.getElementById(canvasId);
     if (!canvas) {
@@ -535,28 +535,146 @@ window.SIDIF_CHARTS = {
     }
 
     try {
-      // Buat canvas sementara berlatar putih bersih (agar tidak transparan di PPT)
+      // Map judul resmi grafik berdasarkan canvasId
+      const titleMap = {
+        "chart-weekly": {
+          title: "KURVA EPIDEMIOLOGI DIFTERI JAWA TIMUR (MINGGU M1 - M43 TAHUN 2026)",
+          sub: "Distribusi Kasus Berdasarkan Tanggal Onset Gejala & Klasifikasi Kasus"
+        },
+        "chart-age": {
+          title: "DISTRIBUSI KASUS DIFTERI MENURUT KELOMPOK USIA TAHUN 2026",
+          sub: "Proporsi Kasus Difteri Terbanyak pada Usia > 14 Tahun & Usia Balita (1-4 Tahun)"
+        },
+        "chart-immunization": {
+          title: "PROFIL STATUS IMUNISASI PENDERITA DIFTERI JAWA TIMUR",
+          sub: "Status Riwayat DPT-HB-Hib / DT / Td Sesuai Formulir Penyelidikan Difteri (DIF-1)"
+        },
+        "chart-gender": {
+          title: "PROPORSI KASUS DIFTERI BERDASARKAN JENIS KELAMIN",
+          sub: "Distribusi Perbandingan Penderita Laki-laki vs Perempuan"
+        },
+        "chart-contacts": {
+          title: "PROFIL LINGKUNGAN PENULARAN & MANAJEMEN KONTAK ERAT",
+          sub: "Manajemen Profilaksis Eritromisin pada 4 Lingkungan Kontak Erat"
+        }
+      };
+
+      const meta = titleMap[canvasId] || {
+        title: "LAPORAN SURVEILANS DIFTERI JAWA TIMUR TAHUN 2026",
+        sub: "Sistem Informasi Surveilans Imunisasi & Difteri Terintegrasi (SIDIF-2)"
+      };
+
+      // Buat canvas resolusi ultra-tinggi (2x-3x Scale untuk kebutuhan slide presentasi tajam)
+      const scale = 2.5;
+      const targetChartWidth = Math.max(1600, canvas.width * scale);
+      const targetChartHeight = Math.round(targetChartWidth * (canvas.height / canvas.width));
+      
+      const headerHeight = 160;
+      const footerHeight = 70;
+      const padding = 40;
+
       const exportCanvas = document.createElement("canvas");
-      exportCanvas.width = canvas.width;
-      exportCanvas.height = canvas.height;
+      exportCanvas.width = targetChartWidth + (padding * 2);
+      exportCanvas.height = targetChartHeight + headerHeight + footerHeight + (padding * 2);
       const ctx = exportCanvas.getContext("2d");
 
-      // Beri background putih pekat
+      // 1. Background Kartu Putih Bersih
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
 
-      // Gambar grafik di atasnya
-      ctx.drawImage(canvas, 0, 0);
+      // 2. Header Mewah Gradien Hijau Dinas Kesehatan (#0F7A4F -> #064E3B)
+      const grad = ctx.createLinearGradient(0, 0, exportCanvas.width, 0);
+      grad.addColorStop(0, "#064E3B");
+      grad.addColorStop(0.6, "#0F7A4F");
+      grad.addColorStop(1, "#047857");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, exportCanvas.width, headerHeight);
 
-      // Trigger download berkas PNG
+      // Garis aksen emas di bawah header
+      ctx.fillStyle = "#F59E0B";
+      ctx.fillRect(0, headerHeight - 4, exportCanvas.width, 4);
+
+      // Teks Header Instansi & Judul
+      ctx.fillStyle = "#A7F3D0";
+      ctx.font = "bold 15px sans-serif";
+      ctx.fillText("DINAS KESEHATAN PROVINSI JAWA TIMUR  •  BIDANG PENCEGAHAN & PENGENDALIAN PENYAKIT (P2P)", padding, 40);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 26px sans-serif";
+      ctx.fillText(meta.title, padding, 80);
+
+      ctx.fillStyle = "#E2E8F0";
+      ctx.font = "16px sans-serif";
+      ctx.fillText(meta.sub, padding, 115);
+
+      // Badge Kanan Atas
+      const now = new Date();
+      const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const dateIndo = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+      
+      ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.beginPath();
+      ctx.roundRect(exportCanvas.width - padding - 260, 40, 260, 65, 8);
+      ctx.fill();
+
+      ctx.fillStyle = "#FDE68A";
+      ctx.font = "bold 13px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("DOKUMEN SURVEILANS RESMI", exportCanvas.width - padding - 130, 65);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText(dateIndo, exportCanvas.width - padding - 130, 90);
+      ctx.textAlign = "left"; // reset
+
+      // 3. Render Area Grafik di Tengah (Tajam & Jernih)
+      const chartX = padding;
+      const chartY = headerHeight + padding;
+      
+      // Background halus di belakang grafik
+      ctx.fillStyle = "#F8FAFC";
+      ctx.beginPath();
+      ctx.roundRect(chartX, chartY, targetChartWidth, targetChartHeight, 12);
+      ctx.fill();
+      ctx.strokeStyle = "#E2E8F0";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Gambar grafik dengan smoothing kualitas tinggi
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(canvas, chartX + 15, chartY + 15, targetChartWidth - 30, targetChartHeight - 30);
+
+      // 4. Footer Keterangan & Sumber Data
+      const footerY = exportCanvas.height - footerHeight + 20;
+      ctx.fillStyle = "#E2E8F0";
+      ctx.fillRect(padding, exportCanvas.height - footerHeight, targetChartWidth, 1);
+
+      ctx.fillStyle = "#64748B";
+      ctx.font = "bold 13px sans-serif";
+      ctx.fillText("Sumber Data: Surveilans Difteri Jawa Timur (SIDIPro 2026) & Formulir Baku PE DIF-1 Kemenkes RI", padding, footerY + 15);
+
+      ctx.font = "italic 13px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("Diekspor melalui SIDIF-2 Jawa Timur  •  Standar Presentasi 4K HD", exportCanvas.width - padding, footerY + 15);
+      ctx.textAlign = "left"; // reset
+
+      // 5. Trigger Download PNG Kualitas Maksimal
       const link = document.createElement("a");
-      const dateStr = new Date().toISOString().substring(0, 10);
-      link.download = `${defaultFilename}_${dateStr}.png`;
+      const cleanName = meta.title.toLowerCase().replace(/[^a-z0-9]/g, "_").substring(0, 40);
+      link.download = `${cleanName}_${now.toISOString().substring(0, 10)}.png`;
       link.href = exportCanvas.toDataURL("image/png", 1.0);
       link.click();
     } catch (err) {
-      console.error("Gagal mengekspor grafik:", err);
-      alert("Gagal mengunduh grafik. Silakan coba kembali.");
+      console.error("Gagal mengekspor grafik resolusi tinggi:", err);
+      // Fallback sederhana jika roundRect atau canvas scale bermasalah
+      try {
+        const link = document.createElement("a");
+        link.download = `${defaultFilename}_hd.png`;
+        link.href = canvas.toDataURL("image/png", 1.0);
+        link.click();
+      } catch (e) {
+        alert("Gagal mengunduh grafik. Silakan coba kembali.");
+      }
     }
   }
 };

@@ -107,14 +107,14 @@
             <button onclick="document.body.className = 'font-mode-xl';" class="px-2 py-1 rounded hover:text-black">Sangat Besar</button>
           </div>
 
-          <!-- Active Presence Indicator (Petugas Online) -->
-          <button id="online-users-badge" onclick="window.SIDIF_APP.toggleOnlinePresenceModal()" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg text-[11px] font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memantau petugas kabupaten/kota yang sedang aktif">
+          <!-- Active Presence Indicator (Petugas Online - Terkunci & Muncul Hanya Setelah Login) -->
+          <button id="online-users-badge" onclick="window.SIDIF_APP.toggleOnlinePresenceModal()" class="hidden items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg text-[11px] font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 transition cursor-pointer" title="Klik untuk memantau petugas kabupaten/kota yang sedang aktif">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
             <span id="online-users-count">1 Petugas Online</span>
           </button>
 
-          <!-- Notification Bell with Rich Dropdown List -->
-          <div class="relative" id="notification-container">
+          <!-- Notification Bell with Rich Dropdown List (Terkunci & Muncul Hanya Setelah Login) -->
+          <div class="relative hidden" id="notification-container">
             <button id="btn-bell" onclick="window.SIDIF_APP.toggleNotificationDropdown()" class="w-10 h-10 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 relative transition cursor-pointer" title="Daftar Notifikasi & Peringatan Masuk">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
               <span id="bell-counter" class="hidden absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-xs">0</span>
@@ -379,7 +379,7 @@
             <div class="flex items-center gap-4">
               <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-white border border-slate-400"></span> Putih: Bebas Kasus (0 Kasus)</span>
               <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-[#DC2626]"></span> Merah: Positif Kultur Lab (KLB)</span>
-              <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-[#F472B6] border border-pink-500"></span> Pink: Ada Kasus (Lab Negatif / Belum Lab)</span>
+              <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded bg-[#FED7AA] border border-orange-400"></span> Peach / Soft Amber: Kompatibel Klinis / Suspek</span>
             </div>
             <span class="text-[11px] text-slate-400 italic">Tile: Esri Light Gray (Keyless)</span>
           </div>
@@ -644,9 +644,48 @@
       <form id="main-dif3-form" onsubmit="event.preventDefault(); window.SIDIF_APP.handleFormSubmit();" class="bg-white border border-slate-200 rounded-xl p-6 space-y-6 shadow-xs">
         <input type="hidden" id="form-case-id">
 
-        <!-- ==================== BAGIAN I ==================== -->
+        <!-- ==================== BAGIAN I: IDENTITAS PELAPOR ==================== -->
+        <div class="p-5 bg-blue-50/70 border-2 border-blue-400 rounded-xl space-y-4">
+          <div class="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-blue-200">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+              <h3 class="text-sm font-black text-blue-950 uppercase tracking-wide">BAGIAN I: IDENTITAS PELAPOR & PETUGAS PENYELIDIK EPIDEMIOLOGI (PE)</h3>
+            </div>
+            <span class="px-2 py-0.5 bg-blue-700 text-white text-[10px] font-black rounded uppercase">FORM DIF-1 RESMI</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Nama Petugas Pelapor / PE <span class="text-red-600 font-black">*WAJIB</span></label>
+              <input type="text" id="form-pelapor-nama" placeholder="Contoh: JOKO WALUYO, S.Kep" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-blue-600">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">NIP Petugas Pelapor</label>
+              <input type="text" id="form-pelapor-nip" placeholder="Contoh: 19820918 200912 1 001" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-600">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Kantor / Faskes Pelapor <span class="text-red-600 font-black">*WAJIB</span></label>
+              <input type="text" id="form-pelapor-kantor" placeholder="Contoh: Puskesmas Kebonagung" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-blue-600">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Jabatan Petugas</label>
+              <input type="text" id="form-pelapor-jabatan" placeholder="Contoh: Epidemiolog Kesehatan Ahli" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-blue-100">
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Tanggal Terima Laporan</label>
+              <input type="date" id="form-tgl-terima-laporan" class="w-full h-10 px-3 bg-white border border-blue-300 rounded-lg text-xs">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Tanggal Pelacakan Kasus (PE)</label>
+              <input type="date" id="form-tgl-pe" class="w-full h-10 px-3 bg-white border border-blue-300 rounded-lg text-xs">
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== BAGIAN II ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 flex items-center justify-between">
-          <span>BAGIAN I: IDENTITAS PASIEN & GEOGRAFIS (KOLOM 1 - 10)</span>
+          <span>BAGIAN II: IDENTITAS PASIEN & GEOGRAFIS (KOLOM 1 - 10)</span>
           <span class="text-[11px] text-amber-700 font-semibold lowercase">latar krem = kolom wajib</span>
         </h3>
 
@@ -661,7 +700,11 @@
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
             <div class="md:col-span-2">
-              <input type="text" id="form-no-epid" placeholder="D-351526001 (atau D-35.15-2026-001)" class="w-full h-12 px-3 bg-white border-2 border-emerald-500 rounded-lg font-mono text-base font-black text-emerald-900 tracking-wider">
+              <div class="flex items-stretch rounded-lg border-2 border-emerald-500 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-600 bg-white shadow-xs">
+                <span class="px-4 py-3 bg-[#0F7A4F] text-white font-mono font-black text-lg select-none shrink-0 flex items-center justify-center border-r border-emerald-600">D -</span>
+                <input type="text" id="form-no-epid" placeholder="351526001" maxlength="12" class="w-full h-12 px-4 bg-white font-mono text-lg font-black text-emerald-950 tracking-widest outline-none border-none focus:ring-0">
+              </div>
+              <p class="text-[11px] text-emerald-800 mt-1 font-medium">Ketik <strong>9 digit angka</strong> saja (misal: <code>351526001</code>). Awalan <strong>D -</strong> ditambahkan otomatis.</p>
             </div>
             <div class="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-emerald-200">
               <p>Sesuai Juknis Surveilans Difteri 2023, No. EPID terdiri dari <strong>9 digit kotak baku</strong>: Kode Provinsi Jatim (35), Kode Wilayah Kab/Kota (3501–3579), 2 digit tahun, dan nomor urut tahunan.</p>
@@ -669,23 +712,23 @@
           </div>
         </div>
 
-        <!-- NIK Pasien -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start p-4 bg-[#FFFBEB] border-2 border-[#F59E0B] rounded-xl">
+        <!-- NIK Pasien (OPSIONAL) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start p-4 bg-slate-50 border border-slate-300 rounded-xl">
           <div class="md:col-span-2">
             <div class="flex items-center gap-2 mb-1">
               <label class="block text-sm font-bold text-slate-800">Nomor Induk Kependudukan (NIK) Pasien</label>
-              <span class="px-2 py-0.5 bg-red-600 text-white text-[10px] font-black rounded uppercase">WAJIB</span>
+              <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded uppercase">OPSIONAL</span>
             </div>
-            <input type="text" id="form-nik" placeholder="Wajib 16 digit angka (sesuai KK)" maxlength="16" class="w-full h-12 px-3 bg-white border border-amber-400 rounded-lg font-mono text-base focus:ring-2 focus:ring-[#0F7A4F]">
+            <input type="text" id="form-nik" placeholder="Opsional (16 digit angka jika ada)" maxlength="16" class="w-full h-12 px-3 bg-white border border-slate-300 rounded-lg font-mono text-base focus:ring-2 focus:ring-[#0F7A4F]">
             
             <div class="mt-2 flex items-center gap-2">
               <input type="checkbox" id="form-no-nik-chk" class="w-4 h-4 text-[#0F7A4F] rounded cursor-pointer" onchange="document.getElementById('form-nik').disabled = this.checked;">
-              <label for="form-no-nik-chk" class="text-xs text-slate-700 cursor-pointer font-medium">Bayi Belum Memiliki NIK Resmi (Terbitkan ID Sementara Otomatis)</label>
+              <label for="form-no-nik-chk" class="text-xs text-slate-600 cursor-pointer font-medium">Bayi Belum Memiliki NIK Resmi</label>
             </div>
           </div>
           <div class="bg-white border border-slate-200 p-3 rounded-lg text-xs text-slate-600 shadow-2xs">
-            <p class="font-bold text-slate-800 mb-1">Panduan Pengisian:</p>
-            <p>Kolom bertanda latar krem adalah <strong>KOLOM WAJIB</strong>. NIK wajib 16 digit. Jika bayi baru lahir belum memiliki NIK, centang kotak di samping untuk mendapatkan ID Sementara.</p>
+            <p class="font-bold text-slate-800 mb-1">Panduan Identitas:</p>
+            <p>Pengisian data difokuskan pada <strong>No. EPID Kasus</strong> sebagai kunci rekam medis utama. NIK bersifat opsional dan tidak memblokir simpan formulir jika belum tersedia.</p>
           </div>
         </div>
 
@@ -1060,9 +1103,9 @@
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Pemberian Antibiotik</label>
             <select id="form-antibiotik" onchange="window.SIDIF_APP.handleAntibiotikChange()" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
-              <option value="Azitromisin" selected>Azitromisin (Rekomendasi Utama)</option>
-              <option value="Eritromisin">Eritromisin</option>
-              <option value="Penisilin Prokain">Penisilin Prokain</option>
+              <option value="Eritromisin" selected>Eritromisin (Oral 40 mg/kgBB/hari 14 Hari - Rekomendasi Utama)</option>
+              <option value="Penisilin Prokain">Penisilin Prokain G (IM 50.000 IU/kgBB/hari 14 Hari)</option>
+              <option value="Azitromisin">Azitromisin (Alternatif)</option>
               <option value="Amoksisilin">Amoksisilin</option>
               <option value="Lainnya">Lainnya (Tulis Manual)</option>
               <option value="Tidak">Tidak Diberikan</option>
@@ -1077,11 +1120,20 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Keadaan Akhir</label>
-            <select id="form-keadaan" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
+            <select id="form-keadaan" onchange="window.SIDIF_APP.handleKeadaanChange()" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
               <option value="Hidup / Sembuh">Hidup / Sembuh</option>
               <option value="Meninggal Dunia">Meninggal Dunia</option>
               <option value="Masih Rawat">Masih Dirawat</option>
             </select>
+          </div>
+
+          <div id="box-tgl-sembuh">
+            <label class="block text-xs font-bold text-emerald-800 mb-1">Tanggal Pasien Sembuh <span class="text-red-600 font-bold">*Wajib jika Sembuh</span></label>
+            <input type="date" id="form-tgl-sembuh" class="w-full h-11 px-3 bg-white border-2 border-emerald-400 rounded text-xs font-semibold">
+          </div>
+          <div id="box-tgl-meninggal" class="hidden">
+            <label class="block text-xs font-bold text-rose-800 mb-1">Tanggal Pasien Meninggal <span class="text-red-600 font-bold">*Wajib jika Meninggal</span></label>
+            <input type="date" id="form-tgl-meninggal" class="w-full h-11 px-3 bg-white border-2 border-rose-400 rounded text-xs font-semibold">
           </div>
 
           <div>
@@ -1103,12 +1155,50 @@
 
 
         <!-- ==================== BAGIAN VII ==================== -->
-        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2">
-          BAGIAN VII: MANAJEMEN KONTAK ERAT & PROFILAKSIS 4 LINGKUNGAN (KOLOM 41 - 49)
+        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2 flex items-center justify-between">
+          <span>BAGIAN VII: MANAJEMEN KONTAK ERAT & PROFILAKSIS (KOLOM 41 - 49)</span>
+          <span class="text-[11px] text-emerald-800 font-semibold">Format Formulir DIF-1 Resmi Kemenkes RI</span>
         </h3>
 
-        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-          <p class="text-xs text-slate-600">Catat jumlah kontak erat dan jumlah yang telah meminum obat profilaksis (Eritromisin) di 4 lingkungan:</p>
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+          <!-- Tabel Input Nama Kontak Erat Sesuai Form DIF-1 Halaman 3 -->
+          <div class="p-4 bg-white rounded-xl border border-slate-300 shadow-xs">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b border-slate-200">
+              <div>
+                <span class="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                  Daftar Identitas Kontak Erat Kasus (Form DIF-1 Halaman 3)
+                </span>
+                <p class="text-[11px] text-slate-500">Wajib menginputkan nama-nama kontak erat yang dilakukan pelacakan, status imunisasi, dan profilaksis.</p>
+              </div>
+              <button type="button" onclick="window.SIDIF_APP.addContactRow()" class="px-3 py-1.5 bg-[#0F7A4F] hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-xs transition cursor-pointer">
+                <span>+ Tambah Kontak Erat</span>
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left border border-slate-200 rounded-lg">
+                <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-300">
+                  <tr>
+                    <th class="p-2 text-center w-10">No</th>
+                    <th class="p-2 min-w-[160px]">Nama Kontak Erat</th>
+                    <th class="p-2 w-20 text-center">Umur (Th)</th>
+                    <th class="p-2 min-w-[140px]">Hubungan / Lingkungan</th>
+                    <th class="p-2 min-w-[120px]">Gejala Sakit</th>
+                    <th class="p-2 min-w-[130px]">Status Imunisasi</th>
+                    <th class="p-2 min-w-[110px]">Profilaksis (Eritromisin)</th>
+                    <th class="p-2 text-center w-12">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="contacts-entry-table-body" class="divide-y divide-slate-200">
+                  <!-- Diisi dinamis -->
+                </tbody>
+              </table>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-2 italic">* Jumlah kontak dan profilaksis di rekap sistem akan otomatis menyesuaikan dengan daftar nama yang dimasukkan di atas.</p>
+          </div>
+
+          <p class="text-xs text-slate-600 font-semibold pt-1">Rekap Jumlah Kontak Erat & Profilaksis 4 Lingkungan (Otomatis Tersinkron):</p>
 
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <!-- Rumah -->
@@ -1913,21 +2003,18 @@
               </div>
             </div>
 
-            <!-- Tanda Tangan Resmi (Editable langsung di lembar atau via drawer) -->
-            <div class="grid grid-cols-2 text-center pt-4 border-t border-black text-xs">
-              <div>
-                <p>Mengetahui,</p>
-                <p id="pe-sign-pejabat-jabatan" class="font-bold cursor-text hover:bg-emerald-50 rounded px-1 transition" contenteditable="true" title="Klik untuk mengedit langsung">Kepala Bidang P2P Dinkes Provinsi</p>
-                <div class="h-16"></div>
-                <p id="pe-sign-pejabat-nama" class="font-bold underline cursor-text hover:bg-emerald-50 rounded px-1 transition" contenteditable="true" title="Klik untuk mengedit langsung">dr. Sulvy Dwi Anggraini, M.Kes</p>
-                <p id="pe-sign-pejabat-nip" class="text-[10px] cursor-text hover:bg-emerald-50 rounded px-1 transition" contenteditable="true" title="Klik untuk mengedit langsung">NIP. 19740512 200212 2 003</p>
-              </div>
-              <div>
-                <p>Petugas Penyelidik Epidemiologi,</p>
-                <p id="pe-sign-petugas-instansi" class="font-bold cursor-text hover:bg-emerald-50 rounded px-1 transition" contenteditable="true" title="Klik untuk mengedit langsung">Dinas Kesehatan Kabupaten / Kota</p>
-                <div class="h-16"></div>
-                <p id="pe-sign-petugas-nama" class="font-bold underline cursor-text hover:bg-emerald-50 rounded px-1 transition" contenteditable="true" title="Klik untuk mengedit langsung">( Tanda Tangan & Nama Terang )</p>
-                <p id="pe-sign-petugas-nip" class="text-[10px] cursor-text hover:bg-emerald-50 rounded px-1 transition" contenteditable="true" title="Klik untuk mengedit langsung">Petugas Surveilans PD3I</p>
+            <!-- Tanda Tangan Tunggal: Petugas Penyelidik Epidemiologi (Mengetahui Dihilangkan Sesuai Instruksi Resmi Kemenkes) -->
+            <div class="flex justify-end pt-4 border-t border-black text-xs">
+              <div class="w-80 text-center">
+                <p id="pe-sign-tgl-lokasi" class="mb-1 text-slate-800">..., ...</p>
+                <p class="font-bold">Petugas Penyelidik Epidemiologi,</p>
+                <p id="pe-sign-petugas-instansi" class="font-semibold text-slate-900">Puskesmas / Dinas Kesehatan</p>
+                <div class="h-16 flex items-center justify-center">
+                  <span class="text-[10px] text-slate-300 italic no-print">( Tanda Tangan & Stempel Resmi )</span>
+                </div>
+                <p id="pe-sign-petugas-nama" class="font-black underline text-sm tracking-wide">JOKO WALUYO, S.Kep</p>
+                <p id="pe-sign-petugas-nip" class="text-[10.5px] font-mono text-slate-800">NIP. 19820918 200912 1 001</p>
+                <p id="pe-sign-petugas-jabatan" class="text-[10.5px] text-slate-700">Epidemiolog Kesehatan Ahli</p>
               </div>
             </div>
 

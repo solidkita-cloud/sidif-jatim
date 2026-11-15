@@ -211,13 +211,13 @@ window.SIDIF_MAP = {
       };
     }
 
-    // B. Pink: Ada kasus tapi kultur negatif / suspek / pending
+    // B. Warna Soft Warm Peach/Amber: Ada kasus tapi kultur negatif / suspek / pending (Kompatibel Klinis)
     if (data.kasusKlinis > 0 || data.kasus > 0) {
       return {
-        fillColor: "#F472B6",
+        fillColor: "#FED7AA",
         weight: 1.5,
         opacity: 1,
-        color: "#DB2777",
+        color: "#F97316",
         fillOpacity: 0.85
       };
     }

@@ -15,7 +15,8 @@ window.SIDIF_APP = {
   init() {
     this.applySettings();
     this.loadNotifications();
-    this.renderNotifications();
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    this.updateAuthUi(user);
     this.initPresenceAndChat();
 
     this.setupEventListeners();
@@ -23,13 +24,6 @@ window.SIDIF_APP = {
     if (window.SIDIF_CLOUD) {
       window.SIDIF_CLOUD.init();
     }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
-      if (user) {
-        this.updateAuthUi(user);
-      }
-    });
   },
 
   // Terapkan Pengaturan Identitas Situs
@@ -84,6 +78,9 @@ window.SIDIF_APP = {
     const userBadge = document.getElementById("header-user-badge");
     const navWorklist = document.getElementById("nav-worklist");
     const navAdmin = document.getElementById("nav-admin");
+    const notifContainer = document.getElementById("notification-container");
+    const onlineBadge = document.getElementById("online-users-badge");
+    const notifDropdown = document.getElementById("notification-dropdown");
 
     if (user) {
       if (loginBtn) loginBtn.classList.add("hidden");
@@ -96,11 +93,22 @@ window.SIDIF_APP = {
       if (navAdmin && (user.role === "superadmin" || user.role === "admin")) {
         navAdmin.classList.remove("hidden");
       }
+      if (notifContainer) notifContainer.classList.remove("hidden");
+      if (onlineBadge) {
+        onlineBadge.classList.remove("hidden");
+        onlineBadge.classList.add("flex");
+      }
     } else {
       if (loginBtn) loginBtn.classList.remove("hidden");
       if (userBadge) userBadge.classList.add("hidden");
       if (navWorklist) navWorklist.classList.add("hidden");
       if (navAdmin) navAdmin.classList.add("hidden");
+      if (notifContainer) notifContainer.classList.add("hidden");
+      if (onlineBadge) {
+        onlineBadge.classList.add("hidden");
+        onlineBadge.classList.remove("flex");
+      }
+      if (notifDropdown) notifDropdown.classList.add("hidden");
     }
 
     // Segarkan data dan notifikasi sesuai hak akses akun
@@ -232,15 +240,17 @@ window.SIDIF_APP = {
 
     // Kalkulasi Angka KPI Utama (Slide 4, 7, 8)
     const totalKasus = filteredCases.length;
-    const konfirmasi = filteredCases.filter(c => c.klasifikasiKlinis === "Konfirmasi Lab").length;
-    const klinis = filteredCases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis").length;
+    const konfirmasi = filteredCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
+    const klinis = filteredCases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis" || c.klasifikasiKlinis === "Difteri Kompatibel Klinis").length;
     const meninggal = filteredCases.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
     const cfr = totalKasus > 0 ? ((meninggal / totalKasus) * 100).toFixed(1) : "0.0";
     const adsCount = filteredCases.filter(c => c.adsDiberikan).length;
     const adsPct = totalKasus > 0 ? ((adsCount / totalKasus) * 100).toFixed(1) : "0.0";
 
-    // Hitung Positivity Rate
-    const pr = totalKasus > 0 ? ((konfirmasi / Math.max(konfirmasi + klinis, 1)) * 100).toFixed(1) : "0.0";
+    // Hitung Positivity Rate: Positif Lab dibagi Kasus yang Diperiksa Spesimen Lab
+    const labExaminedCases = filteredCases.filter(c => c.hasilKultur === "Positif" || c.hasilKultur === "Negatif" || (c.statusLab && c.statusLab !== "-") || (c.tanggalAmbilHidung && c.tanggalAmbilHidung !== "-") || (c.tanggalAmbilTenggorok && c.tanggalAmbilTenggorok !== "-"));
+    const totalLabExamined = Math.max(labExaminedCases.length, konfirmasi);
+    const pr = totalLabExamined > 0 ? ((konfirmasi / totalLabExamined) * 100).toFixed(1) : "0.0";
 
     // Hitung Kontak Serumah
     let kr = 0, profKr = 0;
@@ -264,11 +274,11 @@ window.SIDIF_APP = {
     if (kpiTotalEl) kpiTotalEl.innerHTML = `${totalKasus} <span class="text-xs font-normal text-slate-500">Kasus</span>`;
     if (kpiSubEl) kpiSubEl.innerText = `Lab: ${konfirmasi} | Klinis: ${klinis}`;
     if (kpiPrEl) kpiPrEl.innerText = `${pr}%`;
-    if (kpiSubPrEl) kpiSubPrEl.innerText = `${konfirmasi} Positif Kultur Lab`;
+    if (kpiSubPrEl) kpiSubPrEl.innerText = `${konfirmasi} Positif dari ${totalLabExamined} Diperiksa Lab`;
     if (kpiCfrEl) kpiCfrEl.innerText = `${cfr}%`;
     if (kpiSubCfrEl) kpiSubCfrEl.innerText = `${meninggal} Kasus Meninggal`;
     if (kpiAdsEl) kpiAdsEl.innerText = `${adsPct}%`;
-    if (kpiSubAdsEl) kpiSubAdsEl.innerText = `${adsCount} Kasus Diberi ADS`;
+    if (kpiSubAdsEl) kpiSubAdsEl.innerText = `${adsCount} dari ${totalKasus} Kasus Diberi ADS`;
     if (kpiKontakEl) kpiKontakEl.innerText = `${kr} Orang`;
     if (kpiSubKontakEl) kpiSubKontakEl.innerText = `${profKr} Diberi Profilaksis`;
 
@@ -375,6 +385,121 @@ window.SIDIF_APP = {
     }
   },
 
+  // Kontrol Input Tanggal Sembuh vs Tanggal Meninggal Berdasarkan Keadaan Akhir
+  handleKeadaanChange() {
+    const sel = document.getElementById("form-keadaan");
+    if (!sel) return;
+    const val = sel.value;
+    const boxSembuh = document.getElementById("box-tgl-sembuh");
+    const boxMeninggal = document.getElementById("box-tgl-meninggal");
+
+    if (val === "Hidup / Sembuh") {
+      if (boxSembuh) boxSembuh.classList.remove("hidden");
+      if (boxMeninggal) boxMeninggal.classList.add("hidden");
+    } else if (val === "Meninggal Dunia") {
+      if (boxSembuh) boxSembuh.classList.add("hidden");
+      if (boxMeninggal) boxMeninggal.classList.remove("hidden");
+    } else {
+      if (boxSembuh) boxSembuh.classList.add("hidden");
+      if (boxMeninggal) boxMeninggal.classList.add("hidden");
+    }
+  },
+
+  // Manajemen Baris Kontak Erat Dinamis (Form DIF-1 Halaman 3)
+  addContactRow(contact = null) {
+    const tbody = document.getElementById("contacts-entry-table-body");
+    if (!tbody) return;
+    const rowIdx = tbody.querySelectorAll("tr.contact-data-row").length + 1;
+    const tr = document.createElement("tr");
+    tr.className = "contact-data-row border-b border-slate-200 hover:bg-slate-50";
+    tr.innerHTML = `
+      <td class="p-2 text-center font-bold text-slate-500 row-number">${rowIdx}</td>
+      <td class="p-2">
+        <input type="text" placeholder="Nama lengkap..." value="${contact?.nama || ''}" oninput="window.SIDIF_APP.syncContactsSummary()" class="contact-nama w-full h-8 px-2 border border-slate-300 rounded text-xs font-semibold">
+      </td>
+      <td class="p-2">
+        <input type="number" placeholder="Umur" value="${contact?.umur || ''}" min="0" max="120" class="contact-umur w-full h-8 px-1 text-center border border-slate-300 rounded text-xs">
+      </td>
+      <td class="p-2">
+        <select onchange="window.SIDIF_APP.syncContactsSummary()" class="contact-hubungan w-full h-8 px-1 border border-slate-300 rounded text-xs">
+          <option value="Serumah" ${contact?.hubungan === 'Serumah' ? 'selected' : ''}>Serumah</option>
+          <option value="Sekolah / Bermain" ${contact?.hubungan === 'Sekolah / Bermain' ? 'selected' : ''}>Sekolah / Bermain</option>
+          <option value="Tetangga" ${contact?.hubungan === 'Tetangga' ? 'selected' : ''}>Tetangga</option>
+          <option value="Tempat Kerja" ${contact?.hubungan === 'Tempat Kerja' ? 'selected' : ''}>Tempat Kerja</option>
+        </select>
+      </td>
+      <td class="p-2">
+        <select class="contact-gejala w-full h-8 px-1 border border-slate-300 rounded text-xs">
+          <option value="Tidak Ada" ${contact?.gejala === 'Tidak Ada' ? 'selected' : ''}>Tidak Ada Gejala</option>
+          <option value="Nyeri Menelan" ${contact?.gejala === 'Nyeri Menelan' ? 'selected' : ''}>Nyeri Menelan</option>
+          <option value="Pseudomembran" ${contact?.gejala === 'Pseudomembran' ? 'selected' : ''}>Ada Pseudomembran</option>
+        </select>
+      </td>
+      <td class="p-2">
+        <select class="contact-imunisasi w-full h-8 px-1 border border-slate-300 rounded text-xs">
+          <option value="Lengkap" ${contact?.imunisasi === 'Lengkap' ? 'selected' : ''}>Lengkap</option>
+          <option value="Belum Lengkap" ${contact?.imunisasi === 'Belum Lengkap' ? 'selected' : ''}>Belum Lengkap</option>
+          <option value="Tidak Diimunisasi" ${contact?.imunisasi === 'Tidak Diimunisasi' ? 'selected' : ''}>Tidak Pernah</option>
+          <option value="Tidak Tahu" ${contact?.imunisasi === 'Tidak Tahu' ? 'selected' : ''}>Tidak Tahu</option>
+        </select>
+      </td>
+      <td class="p-2 text-center">
+        <select onchange="window.SIDIF_APP.syncContactsSummary()" class="contact-profilaksis w-full h-8 px-1 border border-slate-300 rounded text-xs font-semibold bg-emerald-50 text-emerald-900">
+          <option value="Ya" ${contact?.profilaksis !== 'Tidak' ? 'selected' : ''}>Ya (Diberikan)</option>
+          <option value="Tidak" ${contact?.profilaksis === 'Tidak' ? 'selected' : ''}>Tidak</option>
+        </select>
+      </td>
+      <td class="p-2 text-center">
+        <button type="button" onclick="this.closest('tr').remove(); window.SIDIF_APP.syncContactsSummary();" class="text-rose-500 hover:text-rose-700 font-bold p-1 cursor-pointer" title="Hapus Kontak">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+    this.syncContactsSummary();
+  },
+
+  syncContactsSummary() {
+    const rows = document.querySelectorAll("#contacts-entry-table-body tr.contact-data-row");
+    let kr = 0, profKr = 0;
+    let ks = 0, profKs = 0;
+    let kt = 0, profKt = 0;
+    let kb = 0, profKb = 0;
+
+    rows.forEach((tr, i) => {
+      const numEl = tr.querySelector(".row-number");
+      if (numEl) numEl.innerText = (i + 1);
+      const nama = tr.querySelector(".contact-nama")?.value.trim() || "";
+      const hub = tr.querySelector(".contact-hubungan")?.value || "Serumah";
+      const prof = tr.querySelector(".contact-profilaksis")?.value || "Ya";
+
+      if (nama) {
+        if (hub === "Serumah") {
+          kr++;
+          if (prof === "Ya") profKr++;
+        } else if (hub === "Sekolah / Bermain") {
+          ks++;
+          if (prof === "Ya") profKs++;
+        } else if (hub === "Tetangga") {
+          kt++;
+          if (prof === "Ya") profKt++;
+        } else {
+          kb++;
+          if (prof === "Ya") profKb++;
+        }
+      }
+    });
+
+    if (rows.length > 0) {
+      if (document.getElementById("form-kontak-rumah")) document.getElementById("form-kontak-rumah").value = kr;
+      if (document.getElementById("form-prof-rumah")) document.getElementById("form-prof-rumah").value = profKr;
+      if (document.getElementById("form-kontak-sekolah")) document.getElementById("form-kontak-sekolah").value = ks;
+      if (document.getElementById("form-prof-sekolah")) document.getElementById("form-prof-sekolah").value = profKs;
+      if (document.getElementById("form-kontak-tetangga")) document.getElementById("form-kontak-tetangga").value = kt;
+      if (document.getElementById("form-prof-tetangga")) document.getElementById("form-prof-tetangga").value = profKt;
+      if (document.getElementById("form-kontak-bermain")) document.getElementById("form-kontak-bermain").value = kb;
+      if (document.getElementById("form-prof-bermain")) document.getElementById("form-prof-bermain").value = profKb;
+    }
+  },
+
   // Edit / Update Kasus & Hasil Lab BBLKM
   editCase(caseId) {
     const c = window.SIDIF_STORE.getCaseById(caseId);
@@ -388,17 +513,25 @@ window.SIDIF_APP = {
     if (isRegionalUser) {
       const normExact = (s) => (s || "").trim().toLowerCase().replace(/^kab\.\s*/i, "kabupaten ");
       if (normExact(currentUser.region) !== normExact(c.kabupaten)) {
-        alert(`AKSES DITOLAK: Anda sedang masuk sebagai petugas ${currentUser.username} (${currentUser.region}).
-
-Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`);
+        alert(`AKSES DITOLAK: Anda sedang masuk sebagai petugas ${currentUser.username} (${currentUser.region}).\n\nAnda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`);
         return;
       }
     }
 
     this.showView("form-input");
 
+    // Identitas Pelapor Bagian I
+    if (document.getElementById("form-pelapor-nama")) document.getElementById("form-pelapor-nama").value = c.pelaporNama || c.createdBy || "";
+    if (document.getElementById("form-pelapor-nip")) document.getElementById("form-pelapor-nip").value = c.pelaporNip || "";
+    if (document.getElementById("form-pelapor-kantor")) document.getElementById("form-pelapor-kantor").value = c.pelaporKantor || (c.sumberLaporan || "");
+    if (document.getElementById("form-pelapor-jabatan")) document.getElementById("form-pelapor-jabatan").value = c.pelaporJabatan || "";
+    if (document.getElementById("form-tgl-terima-laporan")) document.getElementById("form-tgl-terima-laporan").value = c.tanggalLaporanDiterima || "";
+    if (document.getElementById("form-tgl-pe")) document.getElementById("form-tgl-pe").value = c.tanggalPelacakan || "";
+
     document.getElementById("form-case-id").value = c.id;
-    if (document.getElementById("form-no-epid")) document.getElementById("form-no-epid").value = c.noEpid || "";
+    // No. EPID: Cukup tampilkan angka tanpa 'D-' karena prefix D- sudah ada di badge
+    const cleanNoEpid = (c.noEpid || "").replace(/^D\s*-\s*/i, "");
+    if (document.getElementById("form-no-epid")) document.getElementById("form-no-epid").value = cleanNoEpid;
     if (document.getElementById("form-nik")) document.getElementById("form-nik").value = c.nik || "";
     if (document.getElementById("form-no-nik-chk")) {
       document.getElementById("form-no-nik-chk").checked = !!c.hasNoNik;
@@ -455,6 +588,10 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     }
     if (document.getElementById("form-tgl-antibiotik")) document.getElementById("form-tgl-antibiotik").value = c.tanggalAntibiotik !== "-" ? (c.tanggalAntibiotik || "") : "";
     if (document.getElementById("form-keadaan")) document.getElementById("form-keadaan").value = c.keadaanAkhir || "Hidup / Sembuh";
+    if (document.getElementById("form-tgl-sembuh")) document.getElementById("form-tgl-sembuh").value = c.tanggalSembuh || "";
+    if (document.getElementById("form-tgl-meninggal")) document.getElementById("form-tgl-meninggal").value = c.tanggalMeninggal || "";
+    this.handleKeadaanChange();
+
     if (document.getElementById("form-ads")) document.getElementById("form-ads").checked = !!c.adsDiberikan;
     if (document.getElementById("form-tgl-ads")) document.getElementById("form-tgl-ads").value = c.tanggalADS !== "-" ? (c.tanggalADS || "") : "";
     if (document.getElementById("form-ads-dosis")) document.getElementById("form-ads-dosis").value = c.adsDosis || "";
@@ -469,6 +606,19 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     if (document.getElementById("form-kontak-bermain")) document.getElementById("form-kontak-bermain").value = c.kontakBermain || "";
     if (document.getElementById("form-prof-bermain")) document.getElementById("form-prof-bermain").value = c.profilaksisBermain || "";
     if (document.getElementById("form-keterangan")) document.getElementById("form-keterangan").value = c.keterangan || "";
+
+    // Render Kontak Erat Dinamis
+    const contactTbody = document.getElementById("contacts-entry-table-body");
+    if (contactTbody) {
+      contactTbody.innerHTML = "";
+      if (Array.isArray(c.kontakList) && c.kontakList.length > 0) {
+        c.kontakList.forEach(k => this.addContactRow(k));
+      } else {
+        // Baris awal jika belum ada
+        this.addContactRow({ hubungan: "Serumah", profilaksis: "Ya" });
+        this.addContactRow({ hubungan: "Sekolah / Bermain", profilaksis: "Ya" });
+      }
+    }
 
     this.updateLabConditionalFields();
     this.handleAntibiotikChange();
@@ -493,9 +643,9 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
       this.populateKecamatanDropdown(userCurr.region);
     }
     if (document.getElementById("form-no-epid")) {
-      document.getElementById("form-no-epid").value = userCurr ? window.SIDIF_FORMS.generateNoEpid(userCurr.region) : "";
+      document.getElementById("form-no-epid").value = userCurr ? window.SIDIF_FORMS.generateNoEpid(userCurr.region, null, null, "digits") : "";
     }
-    if (document.getElementById("form-antibiotik")) document.getElementById("form-antibiotik").value = "Azitromisin";
+    if (document.getElementById("form-antibiotik")) document.getElementById("form-antibiotik").value = "Eritromisin (Oral 40 mg/kgBB/hari 14 Hari - Rekomendasi Utama)";
     this.handleAntibiotikChange();
     this.handleAdsChange();
     this.updateLabConditionalFields();
@@ -746,7 +896,7 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     this.renderTableData();
   },
 
-  // Simpan Formulir Kasus Difteri (Mencakup 53 Kolom)
+  // Simpan Formulir Kasus Difteri (Mencakup 53 Kolom Baku Sesuai DIF-1 & DIF-3)
   handleFormSubmit() {
     const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     if (!user) {
@@ -754,19 +904,46 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
       return;
     }
 
-    const hasNoNik = document.getElementById("form-no-nik-chk").checked;
-    let nikVal = document.getElementById("form-nik").value.trim();
+    // 1. Validasi Bagian I: Identitas Pelapor (Petugas PE)
+    const pelaporNamaVal = document.getElementById("form-pelapor-nama") ? document.getElementById("form-pelapor-nama").value.trim() : "";
+    const pelaporNipVal = document.getElementById("form-pelapor-nip") ? document.getElementById("form-pelapor-nip").value.trim() : "";
+    const pelaporKantorVal = document.getElementById("form-pelapor-kantor") ? document.getElementById("form-pelapor-kantor").value.trim() : "";
+    const pelaporJabatanVal = document.getElementById("form-pelapor-jabatan") ? document.getElementById("form-pelapor-jabatan").value.trim() : "";
+
+    if (!pelaporNamaVal) {
+      alert("Bagian I: Nama Petugas Penyelidik Epidemiologi (Pelapor) wajib diisi (misal: JOKO WALUYO, S.Kep).");
+      if (document.getElementById("form-pelapor-nama")) document.getElementById("form-pelapor-nama").focus();
+      return;
+    }
+    if (!pelaporKantorVal) {
+      alert("Bagian I: Nama Kantor / Faskes Pelapor wajib diisi (misal: Puskesmas Kebonagung / Dinkes Kab. Sidoarjo).");
+      if (document.getElementById("form-pelapor-kantor")) document.getElementById("form-pelapor-kantor").focus();
+      return;
+    }
+
+    // 2. Validasi No. EPID (Identitas Utama Baku Kemenkes: Wajib Format Angka D-xxxxxxxx)
+    let rawNoEpid = document.getElementById("form-no-epid") ? document.getElementById("form-no-epid").value.trim() : "";
+    rawNoEpid = rawNoEpid.replace(/^D\s*-\s*/i, "").replace(/[^0-9]/g, "");
+    if (!rawNoEpid) {
+      rawNoEpid = window.SIDIF_FORMS.generateNoEpid(user.region).replace(/^D\s*-\s*/i, "");
+    }
+    const noEpidVal = "D-" + rawNoEpid;
+
+    // 3. NIK Bersifat Opsional (Hanya divalidasi panjang jika diisi)
+    const hasNoNik = document.getElementById("form-no-nik-chk") ? document.getElementById("form-no-nik-chk").checked : false;
+    let nikVal = document.getElementById("form-nik") ? document.getElementById("form-nik").value.trim() : "";
+    if (nikVal && nikVal.length !== 16 && !hasNoNik) {
+      alert("Nomor Induk Kependudukan (NIK) jika diisi harus 16 digit angka. Atau kosongkan jika belum memiliki NIK.");
+      document.getElementById("form-nik").focus();
+      return;
+    }
+
     const namaVal = document.getElementById("form-nama").value.trim();
     const namaIbuVal = document.getElementById("form-nama-ibu").value.trim();
     const tglLahirVal = document.getElementById("form-tgl-lahir").value;
     const tglOnsetVal = document.getElementById("form-tgl-onset").value;
     const kecVal = document.getElementById("form-kecamatan").value;
 
-    if (!hasNoNik && nikVal.length !== 16) {
-      alert("Nomor Induk Kependudukan (NIK) wajib 16 digit angka. Jika bayi belum ada NIK, centang kotak 'Bayi Belum Memiliki NIK Resmi'.");
-      document.getElementById("form-nik").focus();
-      return;
-    }
     if (!namaVal) {
       alert("Nama lengkap pasien wajib diisi.");
       document.getElementById("form-nama").focus();
@@ -806,8 +983,8 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     const dptVal = document.getElementById("form-dpt").value;
     const dtVal = document.getElementById("form-dt").value;
     const tdVal = document.getElementById("form-td").value;
-    const dosesObj = window.SIDIF_FORMS.calculateDoses(dptVal, dtVal, tdVal);
     const ageObj = window.SIDIF_FORMS.calculateAge(tglLahirVal, tglOnsetVal);
+    const dosesObj = window.SIDIF_FORMS.calculateDoses(dptVal, dtVal, tdVal, ageObj.years, ageObj.months);
     const weekVal = window.SIDIF_FORMS.calculateWeek(tglOnsetVal);
 
     const tglLaporanVal = document.getElementById("form-tgl-terima-laporan").value || tglOnsetVal;
@@ -824,15 +1001,8 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     const hasilKulturT = document.getElementById("form-hasil-kultur-tenggorok").value;
     const hasilKulturOverall = (hasilKulturH === "Positif" || hasilKulturT === "Positif") ? "Positif" : ((hasilKulturH === "Negatif" && hasilKulturT === "Negatif") ? "Negatif" : "Pending");
 
-    // Validasi No. EPID (Identitas Utama Baku Kemenkes)
-    let noEpidVal = document.getElementById("form-no-epid") ? document.getElementById("form-no-epid").value.trim() : "";
-    if (!noEpidVal) {
-      noEpidVal = window.SIDIF_FORMS.generateNoEpid(user.region);
-      if (document.getElementById("form-no-epid")) document.getElementById("form-no-epid").value = noEpidVal;
-    }
-
     // Validasi Antibiotik & Tanggal Mulai
-    let antibiotikVal = document.getElementById("form-antibiotik") ? document.getElementById("form-antibiotik").value : "Azitromisin";
+    let antibiotikVal = document.getElementById("form-antibiotik") ? document.getElementById("form-antibiotik").value : "Eritromisin";
     if (antibiotikVal === "Lainnya") {
       antibiotikVal = document.getElementById("form-antibiotik-manual") ? document.getElementById("form-antibiotik-manual").value.trim() : "Antibiotik Lainnya";
       if (!antibiotikVal) antibiotikVal = "Antibiotik Lainnya";
@@ -861,6 +1031,22 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
       }
     }
 
+    // Validasi Keadaan Akhir & Tanggal Sembuh / Meninggal
+    const keadaanVal = document.getElementById("form-keadaan") ? document.getElementById("form-keadaan").value : "Hidup / Sembuh";
+    const tglSembuhVal = document.getElementById("form-tgl-sembuh") ? document.getElementById("form-tgl-sembuh").value : "";
+    const tglMeninggalVal = document.getElementById("form-tgl-meninggal") ? document.getElementById("form-tgl-meninggal").value : "";
+
+    if (keadaanVal === "Hidup / Sembuh" && !tglSembuhVal) {
+      alert("Bagian VI: Tanggal pasien sembuh wajib diisi bila keadaan akhir adalah 'Hidup / Sembuh'.");
+      if (document.getElementById("form-tgl-sembuh")) document.getElementById("form-tgl-sembuh").focus();
+      return;
+    }
+    if (keadaanVal === "Meninggal Dunia" && !tglMeninggalVal) {
+      alert("Bagian VI: Tanggal pasien meninggal wajib diisi bila keadaan akhir adalah 'Meninggal Dunia'.");
+      if (document.getElementById("form-tgl-meninggal")) document.getElementById("form-tgl-meninggal").focus();
+      return;
+    }
+
     // Validasi Kultur Positif -> Varian & Toksigenitas Wajib
     const isKulturPos = (hasilKulturH === "Positif" || hasilKulturT === "Positif");
     const varianVal = document.getElementById("form-varian") ? document.getElementById("form-varian").value : "-";
@@ -880,12 +1066,29 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     }
     const kontakEpiVal = document.getElementById("form-kontak-epi").checked;
 
+    // Klasifikasi Sesuai Baku Kemenkes (Hubungan Epidemiologi Masuk Pertimbangan Utama)
     const classObj = window.SIDIF_FORMS.calculateClassification({
       hasilKulturHidung: hasilKulturH,
       hasilKulturTenggorok: hasilKulturT,
       tanggalAmbilHidung: tglAmbilHidung,
       tanggalAmbilTenggorok: tglAmbilTenggorok,
-      hasilKultur: hasilKulturOverall
+      hasilKultur: hasilKulturOverall,
+      hubunganEpidemiologi: kontakEpiVal
+    });
+
+    // Kumpulkan Daftar Nama Kontak Erat Dinamis (Bagian VII)
+    const kontakList = [];
+    const contactRows = document.querySelectorAll("#contacts-entry-table-body tr.contact-data-row");
+    contactRows.forEach(tr => {
+      const nama = tr.querySelector(".contact-nama")?.value.trim() || "";
+      const umur = tr.querySelector(".contact-umur")?.value.trim() || "";
+      const hubungan = tr.querySelector(".contact-hubungan")?.value || "Serumah";
+      const gejala = tr.querySelector(".contact-gejala")?.value || "Tidak Ada";
+      const imunisasi = tr.querySelector(".contact-imunisasi")?.value || "Lengkap";
+      const profilaksis = tr.querySelector(".contact-profilaksis")?.value || "Ya";
+      if (nama) {
+        kontakList.push({ nama, umur, hubungan, gejala, imunisasi, profilaksis });
+      }
     });
 
     const kr = parseInt(document.getElementById("form-kontak-rumah").value || "0", 10);
@@ -902,6 +1105,10 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
       noEpid: noEpidVal,
       nik: hasNoNik ? "" : nikVal,
       hasNoNik: hasNoNik,
+      pelaporNama: pelaporNamaVal,
+      pelaporNip: pelaporNipVal,
+      pelaporKantor: pelaporKantorVal,
+      pelaporJabatan: pelaporJabatanVal,
       nama: namaVal,
       namaIbu: namaIbuVal,
       tanggalLahir: tglLahirVal,
@@ -943,12 +1150,15 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
       toksigenitas: toksikVal,
       hubunganEpidemiologi: kontakEpiVal,
       klasifikasiKlinis: classObj.kategori,
-      antibiotik: document.getElementById("form-antibiotik").value,
+      antibiotik: antibiotikVal,
       tanggalAntibiotik: document.getElementById("form-tgl-antibiotik").value,
-      adsDiberikan: document.getElementById("form-ads").checked,
-      tanggalADS: document.getElementById("form-tgl-ads").value,
-      adsDosis: parseInt(document.getElementById("form-ads-dosis").value || "0", 10),
-      keadaanAkhir: document.getElementById("form-keadaan").value,
+      adsDiberikan: adsVal,
+      tanggalADS: tglAdsVal,
+      adsDosis: parseInt(dosisAdsVal || "0", 10),
+      keadaanAkhir: keadaanVal,
+      tanggalSembuh: tglSembuhVal,
+      tanggalMeninggal: tglMeninggalVal,
+      kontakList: kontakList,
       kontakRumah: kr,
       profilaksisRumah: profKr,
       kontakSekolah: ks,
@@ -990,7 +1200,9 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
   // Notifikasi Real-time Audio Chime & Floating Toast
   triggerRealtimeNotification(newCase) {
     const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
-    const isKabupaten = user && (user.type === "kabupaten" || user.type === "kota" || user.role === "operator");
+    if (!user) return; // Kunci Privasi: Jangan bunyikan alarm atau tampilkan notifikasi jika belum login
+
+    const isKabupaten = (user.type === "kabupaten" || user.type === "kota" || user.role === "operator");
 
     // Jika akun Kabupaten/Kota, jangan bunyikan alarm jika kasus baru berasal dari wilayah lain
     if (isKabupaten) {
@@ -1085,8 +1297,14 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
 
   // Handler Notifikasi Dropdown
   toggleNotificationDropdown() {
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     const dropdown = document.getElementById("notification-dropdown");
     if (!dropdown) return;
+    if (!user) {
+      dropdown.classList.add("hidden");
+      alert("Akses Terbatas: Kotak Notifikasi Surveilans hanya dapat diakses oleh petugas kesehatan yang telah masuk ke sistem.");
+      return;
+    }
     dropdown.classList.toggle("hidden");
     if (!dropdown.classList.contains("hidden")) {
       this.renderNotifications();
@@ -1201,7 +1419,22 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
       this.updateMyPresence();
     }, 12000);
 
-    // Sinkronisasi lintas Tab / Browser Window
+    // Sinkronisasi Lintas Tab / Multi-Akun Instan via BroadcastChannel
+    try {
+      if (typeof window.BroadcastChannel !== "undefined") {
+        this._chatBroadcastChannel = new BroadcastChannel("sidif_chat_presence_channel");
+        this._chatBroadcastChannel.onmessage = (event) => {
+          if (event.data?.type === "CHAT_UPDATE") {
+            this.loadChatMessages();
+            this.renderChatMessages();
+          } else if (event.data?.type === "PRESENCE_UPDATE") {
+            this.renderOnlinePresence();
+          }
+        };
+      }
+    } catch(e) {}
+
+    // Sinkronisasi lintas Tab / Browser Window Fallback
     window.addEventListener("storage", (e) => {
       if (e.key === "sidif_active_presence_map") {
         this.renderOnlinePresence();
@@ -1242,6 +1475,12 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
 
     localStorage.setItem("sidif_active_presence_map", JSON.stringify(cleaned));
     this.renderOnlinePresence();
+
+    try {
+      if (this._chatBroadcastChannel) {
+        this._chatBroadcastChannel.postMessage({ type: "PRESENCE_UPDATE" });
+      }
+    } catch(e) {}
   },
 
   removeOnlinePresence(username) {
@@ -1350,6 +1589,9 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
   saveChatMessages() {
     try {
       localStorage.setItem("sidif_live_chat_feed", JSON.stringify(this.chatMessages));
+      if (this._chatBroadcastChannel) {
+        this._chatBroadcastChannel.postMessage({ type: "CHAT_UPDATE" });
+      }
     } catch(e) {}
   },
 
@@ -1486,190 +1728,197 @@ Anda hanya berwenang mengubah kasus untuk wilayah Anda: ${currentUser.region}.`)
     return queryPatterns.some(pattern => pattern.test(q));
   },
 
-  // Mesin Penjawab Data Epidemiologi SIDIF (Real-Time Query Engine)
+  // Mesin Penjawab Data Epidemiologi SIDIF (Context-Aware Sesuai Akun Wilayah yang Sedang Login)
   generateEpidemiologyAnswer(queryText) {
     const q = queryText.toLowerCase();
-    const cases = window.SIDIF_STORE.getCases();
-    const totalCases = cases.length || 1;
+    const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const isRegional = currentUser && (currentUser.type === "kabupaten" || currentUser.type === "kota") && currentUser.region && currentUser.region !== "Jawa Timur";
+    const userRegion = isRegional ? currentUser.region : null;
 
+    const allCases = window.SIDIF_STORE.getCases();
+    const totalAllCases = allCases.length || 1;
+
+    // Deteksi jika pengguna eksplisit bertanya tentang wilayah tertentu
+    const regionalKeywords = [
+      "sidoarjo", "gresik", "surabaya", "tuban", "bangkalan", "sampang", "sumenep",
+      "malang", "pasuruan", "jember", "blitar", "kediri", "lamongan", "bojonegoro",
+      "probolinggo", "nganjuk", "magetan", "banyuwangi", "bondowoso", "situbondo",
+      "lumajang", "madiun", "ngawi", "ponorogo", "pacitan", "trenggalek", "tulungagung",
+      "mojokerto", "jombang", "pamekasan", "batu"
+    ];
+    const specificRegMatch = regionalKeywords.find(reg => q.includes(reg));
+    const asksJatimExplicit = q.includes("jatim") || q.includes("jawa timur") || q.includes("seluruh") || q.includes("provinsi") || q.includes("semua");
+
+    // Tentukan wilayah acuan data (Default: Wilayah akun login jika ada, atau seluruh Jatim)
+    let activeRegion = "Jawa Timur";
+    let activeCases = allCases;
+    if (specificRegMatch) {
+      activeCases = allCases.filter(c => (c.kabupaten || "").toLowerCase().includes(specificRegMatch));
+      activeRegion = activeCases[0]?.kabupaten || specificRegMatch.toUpperCase();
+    } else if (isRegional && !asksJatimExplicit) {
+      activeCases = allCases.filter(c => c.kabupaten === userRegion);
+      activeRegion = userRegion;
+    }
+
+    const totalCases = activeCases.length;
     let responseText = "";
 
     // 1. QUERY KHUSUS: STATUS IMUNISASI MENURUT UMUR (MISAL: DIBAWAH 1 TAHUN)
     if (q.includes("< 1") || q.includes("<1") || q.includes("dibawah 1") || q.includes("kurang dari 1") || q.includes("bayi") || q.includes("usia 0")) {
-      const under1 = cases.filter(c => (c.umurTahun || 0) < 1);
-      const totalU1 = under1.length;
-      responseText = `📊 **DATA IMUNISASI DIFTERI: KELOMPOK USIA < 1 TAHUN (BAYI)**\n\n` +
-        `• **Total Kasus Difteri Usia < 1 Th:** ${totalU1} kasus (0% dari total 277 kasus Jatim)\n` +
-        `• **Tidak Diimunisasi:** 0 kasus (0%)\n` +
-        `• **Imunisasi Belum Lengkap:** 0 kasus (0%)\n` +
-        `• **Imunisasi Lengkap:** 0 kasus (0%)\n\n` +
-        `💡 **Insight Epidemiologi (Slide 6 PPT Resmi):**\n` +
-        `Pada periode M1–M43 tahun 2026, **tidak ditemukan kasus difteri pada bayi usia < 1 tahun**. Kasus difteri di Jawa Timur paling tinggi menyerang kelompok usia **> 14 tahun (96 kasus / 34.7%)** dan usia **1–4 tahun (53 kasus / 19.1%)**, di mana mayoritas penderita tidak memiliki riwayat imunisasi lengkap.`;
+      const under1Active = activeCases.filter(c => (c.umurTahun || 0) < 1);
+      const totalU1Active = under1Active.length;
+
+      if (isRegional && !specificRegMatch && !asksJatimExplicit) {
+        responseText = `📊 **DATA IMUNISASI DIFTERI USIA < 1 TH (BAYI): ${activeRegion.toUpperCase()}**\n\n` +
+          `• **Wilayah Anda (${activeRegion}):** ${totalU1Active} kasus bayi < 1 tahun\n` +
+          `• **Tidak Diimunisasi:** 0 kasus\n` +
+          `• **Imunisasi Belum Lengkap:** 0 kasus\n` +
+          `• **Imunisasi Lengkap:** 0 kasus\n\n` +
+          `💡 **Konteks & Perbandingan:**\n` +
+          `Pada periode M1–M43 tahun 2026, **tidak ditemukan kasus difteri pada bayi usia < 1 tahun**, baik di wilayah ${activeRegion} maupun di seluruh Jawa Timur (total 277 kasus). Kasus difteri di Jawa Timur paling tinggi menyerang usia **> 14 tahun (96 kasus / 34.7%)** dan usia **1–4 tahun (53 kasus / 19.1%)**.`;
+      } else {
+        responseText = `📊 **DATA IMUNISASI DIFTERI: KELOMPOK USIA < 1 TAHUN (BAYI)**\n\n` +
+          `• **Wilayah Acuan:** ${activeRegion.toUpperCase()}\n` +
+          `• **Total Kasus Difteri Usia < 1 Th:** ${totalU1Active} kasus (0%)\n` +
+          `• **Tidak Diimunisasi:** 0 kasus (0%)\n` +
+          `• **Imunisasi Belum Lengkap:** 0 kasus (0%)\n` +
+          `• **Imunisasi Lengkap:** 0 kasus (0%)\n\n` +
+          `💡 **Insight Epidemiologi (Slide 6 PPT Resmi):**\n` +
+          `Pada periode M1–M43 tahun 2026, **tidak ditemukan kasus difteri pada bayi usia < 1 tahun** di Jawa Timur. Kasus difteri paling tinggi menyerang usia **> 14 tahun (96 kasus / 34.7%)** dan usia **1–4 tahun (53 kasus / 19.1%)**, di mana mayoritas penderita tidak memiliki riwayat imunisasi lengkap.`;
+      }
     }
     else if (q.includes("1-4") || q.includes("1 - 4") || q.includes("balita")) {
-      const g = cases.filter(c => c.umurTahun >= 1 && c.umurTahun <= 4);
+      const g = activeCases.filter(c => c.umurTahun >= 1 && c.umurTahun <= 4);
       let tidak = 0, belum = 0, lengkap = 0;
       g.forEach(c => {
         const imm = (c.statusImunisasi || "").toLowerCase();
         if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
-        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else if ((imm.includes("lengkap") && !imm.includes("belum")) || c.totalDosis >= 4) lengkap++;
         else belum++;
       });
-      const pT = Math.round((tidak / g.length) * 100);
-      const pB = Math.round((belum / g.length) * 100);
-      const pL = Math.max(0, 100 - pT - pB);
-      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 1 – 4 TAHUN (BALITA)**\n\n` +
-        `• **Total Kasus Usia 1–4 Th:** ${g.length} kasus (${((g.length/totalCases)*100).toFixed(1)}% dari total Jatim)\n` +
+      const pT = g.length > 0 ? Math.round((tidak / g.length) * 100) : 0;
+      const pB = g.length > 0 ? Math.round((belum / g.length) * 100) : 0;
+      const pL = g.length > 0 ? Math.max(0, 100 - pT - pB) : 0;
+
+      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 1 – 4 TAHUN (BALITA) - ${activeRegion.toUpperCase()}**\n\n` +
+        `• **Total Kasus Balita 1–4 Th:** ${g.length} kasus (${totalCases > 0 ? ((g.length/totalCases)*100).toFixed(1) : 0}%)\n` +
         `• **Tidak Diimunisasi:** ${tidak} kasus (${pT}%)\n` +
         `• **Imunisasi Belum Lengkap:** ${belum} kasus (${pB}%)\n` +
-        `• **Imunisasi Lengkap:** ${lengkap} kasus (${pL}%)\n\n` +
-        `⚠️ **Peringatan:** 58% balita yang terjangkit difteri tidak pernah mendapat imunisasi DPT dasar. Segera optimalkan respon imunisasi (ORI) dan pelacakan kontak erat balita.`;
+        `• **Imunisasi Lengkap (4 Dosis):** ${lengkap} kasus (${pL}%)\n\n` +
+        `⚠️ Sesuai standar Kemenkes, balita 1–4 tahun wajib mendapat 4 dosis (3 dosis dasar DPT-HB-Hib + 1 dosis booster baduta usia 18 bulan) untuk dihitung lengkap. Segera optimalkan respon imunisasi (ORI).`;
     }
     else if (q.includes("5-9") || q.includes("5 - 9")) {
-      const g = cases.filter(c => c.umurTahun >= 5 && c.umurTahun <= 9);
+      const g = activeCases.filter(c => c.umurTahun >= 5 && c.umurTahun <= 9);
       let tidak = 0, belum = 0, lengkap = 0;
       g.forEach(c => {
         const imm = (c.statusImunisasi || "").toLowerCase();
         if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
-        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else if ((imm.includes("lengkap") && !imm.includes("belum")) || c.totalDosis >= 4) lengkap++;
         else belum++;
       });
-      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 5 – 9 TAHUN**\n\n` +
-        `• **Total Kasus Usia 5–9 Th:** ${g.length} kasus (${((g.length/totalCases)*100).toFixed(1)}%)\n` +
-        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/g.length)*100)}%)\n` +
-        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/g.length)*100)}%)\n` +
-        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/g.length)*100)}%)`;
-    }
-    else if (q.includes("10-14") || q.includes("10 - 14")) {
-      const g = cases.filter(c => c.umurTahun >= 10 && c.umurTahun <= 14);
-      let tidak = 0, belum = 0, lengkap = 0;
-      g.forEach(c => {
-        const imm = (c.statusImunisasi || "").toLowerCase();
-        if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
-        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
-        else belum++;
-      });
-      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 10 – 14 TAHUN**\n\n` +
-        `• **Total Kasus Usia 10–14 Th:** ${g.length} kasus (${((g.length/totalCases)*100).toFixed(1)}%)\n` +
-        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/g.length)*100)}%)\n` +
-        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/g.length)*100)}%)\n` +
-        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/g.length)*100)}%)`;
+      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA 5 – 9 TAHUN - ${activeRegion.toUpperCase()}**\n\n` +
+        `• **Total Kasus Usia 5–9 Th:** ${g.length} kasus\n` +
+        `• **Tidak Diimunisasi:** ${tidak} kasus\n` +
+        `• **Imunisasi Belum Lengkap:** ${belum} kasus\n` +
+        `• **Imunisasi Lengkap:** ${lengkap} kasus`;
     }
     else if (q.includes("> 14") || q.includes(">14") || q.includes("diatas 14") || q.includes("dewasa")) {
-      const g = cases.filter(c => c.umurTahun > 14);
+      const g = activeCases.filter(c => c.umurTahun > 14);
       let tidak = 0, belum = 0, lengkap = 0;
       g.forEach(c => {
         const imm = (c.statusImunisasi || "").toLowerCase();
         if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
-        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
+        else if ((imm.includes("lengkap") && !imm.includes("belum")) || c.totalDosis >= 4) lengkap++;
         else belum++;
       });
-      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA > 14 TAHUN (TERTINGGI)**\n\n` +
-        `• **Total Kasus Usia > 14 Th:** ${g.length} kasus (34.7% - Kelompok Terbanyak di Jatim)\n` +
-        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/g.length)*100)}%)\n` +
-        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/g.length)*100)}%)\n` +
-        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/g.length)*100)}%)\n\n` +
-        `💡 Menunjukkan adanya immunity gap pada kelompok usia remaja dan dewasa akibat hilangnya titer antibodi difteri pasca imunisasi masa kanak-kanak.`;
+      responseText = `📊 **DATA IMUNISASI DIFTERI: USIA > 14 TAHUN (TERTINGGI) - ${activeRegion.toUpperCase()}**\n\n` +
+        `• **Total Kasus Usia > 14 Th:** ${g.length} kasus (${totalCases > 0 ? ((g.length/totalCases)*100).toFixed(1) : 0}%)\n` +
+        `• **Tidak Diimunisasi:** ${tidak} kasus\n` +
+        `• **Imunisasi Belum Lengkap:** ${belum} kasus\n` +
+        `• **Imunisasi Lengkap:** ${lengkap} kasus\n\n` +
+        `💡 Fenomena immunity gap pada usia remaja/dewasa diakibatkan menurunnya antibodi pasca imunisasi masa anak.`;
     }
-    // 2. QUERY WILAYAH SPESIFIK (CONTOH: SIDOARJO, GRESIK, TUBAN, SURABAYA)
-    else if (/sidoarjo|gresik|surabaya|tuban|bangkalan|sampang|sumenep|pasuruan|malang|jember|blitar|kediri|lamongan|bojonegoro|probolinggo|nganjuk|magetan/i.test(q)) {
-      const matchedName = q.match(/sidoarjo|gresik|surabaya|tuban|bangkalan|sampang|sumenep|pasuruan|malang|jember|blitar|kediri|lamongan|bojonegoro|probolinggo|nganjuk|magetan/i)[0];
-      const regCases = cases.filter(c => (c.kabupaten || "").toLowerCase().includes(matchedName));
-      const pos = regCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab").length;
-      const klinis = regCases.filter(c => c.hasilKultur === "Negatif" || c.klasifikasiKlinis === "Kompatibel Klinis").length;
-      const pend = regCases.filter(c => c.hasilKultur === "Pending").length;
-      const dead = regCases.filter(c => (c.keadaanAkhir || "").toLowerCase().includes("meninggal")).length;
-      const ads = regCases.filter(c => c.adsDiberikan).length;
-      const regFullName = regCases.length > 0 ? regCases[0].kabupaten : matchedName.toUpperCase();
-
-      responseText = `📍 **PROFIL KASUS DIFTERI: ${regFullName.toUpperCase()}**\n\n` +
-        `• **Total Kasus Terdata:** ${regCases.length} kasus\n` +
-        `• **Konfirmasi Lab (Positif Kultur):** ${pos} kasus ${pos > 0 ? '(⚠️ Status KLB)' : ''}\n` +
-        `• **Kompatibel Klinis:** ${klinis} kasus\n` +
-        `• **Pending Lab BBLKM:** ${pend} kasus\n` +
-        `• **Meninggal:** ${dead} kasus (${dead > 0 ? 'CFR > 0%' : 'Nihil / 0%'}), Sembuh: ${regCases.length - dead} kasus\n` +
-        `• **Terapi ADS:** ${ads} pasien mendapatkan Anti Difteri Serum`;
-    }
-    // 3. QUERY KONFIRMASI LAB & POSITIVITY RATE
+    // 2. QUERY POSITIVITY RATE & KONFIRMASI LAB
     else if (q.includes("lab") || q.includes("kultur") || q.includes("positif") || q.includes("positivity rate") || q.includes("pr")) {
-      const pos = cases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab").length;
-      const klinis = cases.filter(c => c.hasilKultur === "Negatif" || c.klasifikasiKlinis === "Kompatibel Klinis").length;
-      const pend = cases.filter(c => c.hasilKultur === "Pending").length;
-      const pr = ((pos / totalCases) * 100).toFixed(1);
+      const pos = activeCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
+      const klinis = activeCases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis" || c.klasifikasiKlinis === "Difteri Kompatibel Klinis").length;
+      
+      const labExam = activeCases.filter(c => c.hasilKultur === "Positif" || c.hasilKultur === "Negatif" || (c.statusLab && c.statusLab !== "-") || (c.tanggalAmbilHidung && c.tanggalAmbilHidung !== "-") || (c.tanggalAmbilTenggorok && c.tanggalAmbilTenggorok !== "-")).length;
+      const totalLab = Math.max(labExam, pos);
+      const pr = totalLab > 0 ? ((pos / totalLab) * 100).toFixed(1) : "0.0";
 
-      responseText = `🔬 **HASIL UJI LABORATORIUM & POSITIVITY RATE (SLIDE 8 PPT)**\n\n` +
-        `• **Positif Rate (PR) Difteri Jatim:** ${pr}% (${pos} Kasus Konfirmasi Lab)\n` +
-        `• **Difteri Konfirmasi Lab (Kultur +):** ${pos} kasus (Menetapkan Status KLB)\n` +
-        `• **Kompatibel Klinis (Kultur - / Tanpa Lab):** ${klinis} kasus (88.1%)\n` +
-        `• **Pending (Hasil Biakan BBLKM Surabaya):** ${pend} kasus (5.8%)\n\n` +
-        `Semua sampel positif ditindaklanjuti dengan uji varian (*Mitis, Gravis, Intermedius, Belfanti*) dan toksigenitas (*Toksigenik / Non-toksigenik*).`;
+      responseText = `🔬 **HASIL UJI LABORATORIUM & POSITIVITY RATE: ${activeRegion.toUpperCase()}**\n\n` +
+        `• **Positivity Rate (PR):** ${pr}% (${pos} Positif Lab dari ${totalLab} Spesimen Diperiksa)\n` +
+        `• **Konfirmasi Lab Positif:** ${pos} kasus ${pos > 0 ? '(⚠️ Penetapan Status KLB)' : ''}\n` +
+        `• **Kompatibel Klinis:** ${klinis} kasus\n` +
+        `• **Spesimen Usap Diperiksa Lab:** ${totalLab} spesimen\n\n` +
+        `*(Catatan Baku Kemenkes: Positivity Rate dihitung dari jumlah spesimen positif dibagi jumlah spesimen yang diperiksa lab, bukan dari total kasus).*`;
     }
-    // 4. QUERY KEMATIAN / CFR
+    // 3. QUERY KEMATIAN / CFR
     else if (q.includes("kematian") || q.includes("meninggal") || q.includes("mati") || q.includes("cfr") || q.includes("fatality")) {
-      const dead = cases.filter(c => (c.keadaanAkhir || "").toLowerCase().includes("meninggal"));
-      const cfr = ((dead.length / totalCases) * 100).toFixed(1);
-      responseText = `⚠️ **ANGKA KEMATIAN (CFR) DIFTERI JAWA TIMUR (SLIDE 7 PPT)**\n\n` +
+      const dead = activeCases.filter(c => (c.keadaanAkhir || "").toLowerCase().includes("meninggal"));
+      const cfr = totalCases > 0 ? ((dead.length / totalCases) * 100).toFixed(1) : "0.0";
+      responseText = `⚠️ **ANGKA KEMATIAN (CFR) DIFTERI: ${activeRegion.toUpperCase()}**\n\n` +
         `• **Case Fatality Rate (CFR):** ${cfr}% (${dead.length} Kematian dari ${totalCases} Kasus)\n` +
-        `• **Sebaran Lokasi Kematian:**\n` +
-        `  1. Kab. Tuban: 2 kasus meninggal\n` +
-        `  2. Kab. Gresik: 1 kasus meninggal\n` +
-        `  3. Kab. Sumenep: 1 kasus meninggal\n` +
-        `• **Pasien Sembuh / Hidup:** ${totalCases - dead.length} orang (98.6%)\n\n` +
-        `Penatalaksanaan dini dengan Anti Diphtheria Serum (ADS) dan antibiotik eritromisin/azitromisin sangat krusial menurunkan fatalitas.`;
+        `• **Pasien Hidup / Sembuh:** ${totalCases - dead.length} orang\n\n` +
+        (activeRegion === "Jawa Timur" ? `Sebaran Kematian Jawa Timur: Tuban (2 kasus), Gresik (1 kasus), Sumenep (1 kasus).` : `Data untuk wilayah ${activeRegion}.`);
     }
-    // 5. QUERY ADS (ANTI DIPHTHERIA SERUM)
+    // 4. QUERY ADS (ANTI DIPHTHERIA SERUM)
     else if (q.includes("ads") || q.includes("serum") || q.includes("antitoksin")) {
-      const ads = cases.filter(c => c.adsDiberikan).length;
-      const noAds = totalCases - ads;
-      responseText = `💉 **TATALAKSANA ANTI DIPHTHERIA SERUM (ADS) - SLIDE 8 PPT**\n\n` +
-        `• **Diberi Terapi ADS:** ${ads} kasus (29.6% ~ 30%)\n` +
-        `• **Tanpa Terapi ADS:** ${noAds} kasus (70.4%)\n\n` +
-        `Keterangan: Pemberian ADS diprioritaskan untuk kasus dengan pseudomembran meluas (faring/laring/bullneck) dan suspek berat sesuai dosis tatalaksana Kemenkes.`;
+      const ads = activeCases.filter(c => c.adsDiberikan).length;
+      const adsPct = totalCases > 0 ? ((ads / totalCases) * 100).toFixed(1) : "0.0";
+      responseText = `💉 **TATALAKSANA ANTI DIPHTHERIA SERUM (ADS): ${activeRegion.toUpperCase()}**\n\n` +
+        `• **Kasus Diberi Terapi ADS:** ${ads} kasus (${adsPct}% dari total ${totalCases} kasus)\n` +
+        `• **Rekomendasi Dosis:** 20.000 s/d 80.000 IU sesuai tingkat keparahan pseudomembran\n\n` +
+        `*(Sesuai indikator surveilans, cakupan ADS dihitung dari total seluruh kasus).*`;
     }
-    // 6. QUERY KONTAK ERAT
+    // 5. QUERY KONTAK ERAT
     else if (q.includes("kontak") || q.includes("serumah") || q.includes("profilaksis")) {
-      responseText = `👥 **DATA KONTAK ERAT & PROFILAKSIS DIFTERI (SLIDE 7 PPT)**\n\n` +
-        `• **Kontak Serumah:** 690 orang (83.3% - Terbanyak)\n` +
-        `• **Kontak Sekolah/Bermain:** 75 orang (9.0%)\n` +
-        `• **Kontak Tetangga:** 63 orang (7.7%)\n\n` +
-        `Seluruh kontak erat serumah wajib diberikan kemoprofilaksis eritromisin/azitromisin selama 7–14 hari dan dicatat harian pada **Form DIF-2**.`;
-    }
-    // 7. QUERY STATUS IMUNISASI KESELURUHAN
-    else if (q.includes("imunisasi") || q.includes("vaksin") || q.includes("dpt")) {
-      let tidak = 0, belum = 0, lengkap = 0;
-      cases.forEach(c => {
-        const imm = (c.statusImunisasi || "").toLowerCase();
-        if (imm.includes("tidak") || c.totalDosis === 0) tidak++;
-        else if (imm.includes("lengkap") && !imm.includes("belum") || c.totalDosis >= 4) lengkap++;
-        else belum++;
+      let kr = 0, profKr = 0;
+      activeCases.forEach(c => {
+        kr += (c.kontakRumah || c.kontakEratRumah || 0);
+        profKr += (c.profilaksisRumah || c.kontakEratProfilaksis || 0);
       });
-      responseText = `💉 **STATUS IMUNISASI KESELURUHAN PASIEN DIFTERI (SLIDE 6 PPT)**\n\n` +
-        `• **Total Pasien Terdata:** ${totalCases} kasus\n` +
-        `• **Tidak Diimunisasi:** ${tidak} kasus (${Math.round((tidak/totalCases)*100)}%)\n` +
-        `• **Imunisasi Belum Lengkap:** ${belum} kasus (${Math.round((belum/totalCases)*100)}%)\n` +
-        `• **Imunisasi Lengkap:** ${lengkap} kasus (${Math.round((lengkap/totalCases)*100)}%)\n\n` +
-        `Sebanyak 55% kasus difteri terjadi pada individu yang sama sekali tidak pernah diimunisasi difteri.`;
+      responseText = `👥 **MANAJEMEN KONTAK ERAT & PROFILAKSIS: ${activeRegion.toUpperCase()}**\n\n` +
+        `• **Kontak Erat Serumah Terlacak:** ${kr} orang\n` +
+        `• **Mendapat Profilaksis Eritromisin:** ${profKr} orang (${kr > 0 ? ((profKr/kr)*100).toFixed(1) : 0}%)\n\n` +
+        `Kontak erat wajib diberikan kemoprofilaksis Eritromisin oral selama 7–14 hari dan dipantau harian.`;
     }
-    // 8. DEFAULT / RINGKASAN UMUM
+    // 6. DEFAULT / RINGKASAN WILAYAH
     else {
-      const pos = cases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab").length;
-      responseText = `📋 **RINGKASAN SURVEILANS DIFTERI JAWA TIMUR (M1–M43 TAHUN 2026)**\n\n` +
-        `• **Total Kasus Terdata:** ${totalCases} kasus\n` +
-        `• **Konfirmasi Lab Positif:** ${pos} kasus (Status KLB di Kab/Kota terkait)\n` +
-        `• **Puncak Kasus:** Minggu ke-23 (M23) sebanyak 17 kasus\n` +
-        `• **Kelompok Umur Tertinggi:** > 14 tahun (96 kasus / 34.7%)\n` +
-        `• **Kasus Meninggal:** 4 orang (CFR 1.4% di Tuban, Gresik, Sumenep)\n\n` +
-        `Ketik pertanyaan spesifik seperti:\n` +
-        `• \"jumlah imunisasi dibawah 1th berapa?\"\n` +
-        `• \"berapa kasus di sidoarjo?\"\n` +
-        `• \"berapa kasus konfirmasi lab?\"`;
+      const pos = activeCases.filter(c => c.hasilKultur === "Positif" || (c.klasifikasiKlinis && c.klasifikasiKlinis.includes("Konfirmasi"))).length;
+      const klin = activeCases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis" || c.klasifikasiKlinis === "Difteri Kompatibel Klinis").length;
+      const dead = activeCases.filter(c => (c.keadaanAkhir || "").toLowerCase().includes("meninggal")).length;
+      const ads = activeCases.filter(c => c.adsDiberikan).length;
+
+      if (isRegional && !specificRegMatch && !asksJatimExplicit) {
+        responseText = `📋 **RINGKASAN DATA SURVEILANS WILAYAH ANDA: ${activeRegion.toUpperCase()}**\n\n` +
+          `• **Total Kasus Terlacak:** ${activeCases.length} kasus\n` +
+          `• **Konfirmasi Lab Positif:** ${pos} kasus ${pos > 0 ? '(⚠️ Status KLB Wilayah)' : ''}\n` +
+          `• **Kompatibel Klinis:** ${klin} kasus\n` +
+          `• **Mendapat Terapi ADS:** ${ads} kasus (${activeCases.length > 0 ? ((ads/activeCases.length)*100).toFixed(1) : 0}%)\n` +
+          `• **Kasus Meninggal (CFR):** ${dead} kasus\n\n` +
+          `🌐 **Perbandingan Provinsi Jawa Timur:**\n` +
+          `Total Kasus Jatim: 277 kasus | Konfirmasi Lab: 17 kasus | Kematian: 4 kasus (CFR 1.4%).`;
+      } else {
+        responseText = `📋 **RINGKASAN SURVEILANS DIFTERI: ${activeRegion.toUpperCase()} (M1–M43 TAHUN 2026)**\n\n` +
+          `• **Total Kasus Terdata:** ${activeCases.length} kasus\n` +
+          `• **Konfirmasi Lab Positif:** ${pos} kasus\n` +
+          `• **Kompatibel Klinis:** ${klin} kasus\n` +
+          `• **Mendapat Terapi ADS:** ${ads} kasus (${activeCases.length > 0 ? ((ads/activeCases.length)*100).toFixed(1) : 0}%)\n` +
+          `• **Kasus Meninggal:** ${dead} orang\n\n` +
+          `Ketik pertanyaan seperti:\n` +
+          `• \"jumlah imunisasi dibawah 1th berapa?\"\n` +
+          `• \"berapa kasus konfirmasi lab?\"\n` +
+          `• \"berapa angka kematian atau CFR?\"`;
+      }
     }
 
     return {
       id: "msg-bot-" + Date.now(),
       sender: "Asisten SIDIF (Data AI)",
       role: "ASISTEN AI",
-      region: "Jawa Timur",
+      region: isRegional ? userRegion : "Jawa Timur",
       text: responseText,
       time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
       timestamp: Date.now(),

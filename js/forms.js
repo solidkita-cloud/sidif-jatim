@@ -35,43 +35,79 @@ window.SIDIF_FORMS = {
     };
   },
 
-  // 2. Hitung Total Dosis Vaksin Difteri (DPT + DT + Td)
-  calculateDoses(dptVal, dtVal, tdVal) {
+  // 2. Hitung Total Dosis Vaksin Difteri (DPT + DT + Td) Berdasarkan Umur Resmi Kemenkes:
+  // - Usia < 1 tahun (bayi): Maksimal 3 dosis dasar. Total >= 3 dihitung LENGKAP (Hijau).
+  // - Usia 1 - 5 tahun: Wajib 4 dosis (3 dasar + 1 booster baduta 18 bln) dihitung LENGKAP (Hijau).
+  // - Usia > 5 tahun: 4-5 dosis lanjutan sekolah (BIAS DT/Td) dihitung LENGKAP.
+  calculateDoses(dptVal, dtVal, tdVal, ageYears = null, ageMonths = null) {
     let dptCount = 0;
     if (dptVal === "1") dptCount = 1;
     else if (dptVal === "2") dptCount = 2;
     else if (dptVal === "3") dptCount = 3;
     else if (dptVal === "4") dptCount = 4;
+    else if (!isNaN(parseInt(dptVal, 10))) dptCount = parseInt(dptVal, 10);
 
-    let dtCount = (dtVal === "1" || dtVal === "Pernah (1 dosis)") ? 1 : 0;
+    let dtCount = (dtVal === "1" || dtVal === "Pernah (1 dosis)") ? 1 : (parseInt(dtVal, 10) || 0);
     let tdCount = 0;
     if (tdVal === "1" || tdVal === "1 dosis") tdCount = 1;
     else if (tdVal === "2" || tdVal === "2 dosis") tdCount = 2;
+    else if (!isNaN(parseInt(tdVal, 10))) tdCount = parseInt(tdVal, 10);
 
     const total = dptCount + dtCount + tdCount;
     let label = "0 Dosis (Belum Pernah)";
     let statusImunisasi = "Tidak diimunisasi";
+    let isLengkap = false;
+
+    if (dptVal === "Tidak Tahu" || dtVal === "Tidak Tahu" || tdVal === "Tidak Tahu") {
+      label = "Tidak Tahu";
+      statusImunisasi = "Tidak Tahu";
+      return { total, label, statusImunisasi, isLengkap: false };
+    }
 
     if (total === 0) {
       label = "0 Dosis (Belum Pernah)";
       statusImunisasi = "Tidak diimunisasi";
-    } else if (total >= 1 && total <= 2) {
-      label = `${total} Dosis (Belum Lengkap)`;
-      statusImunisasi = "Imunisasi belum lengkap";
-    } else if (total === 3) {
-      label = "3 Dosis (Belum Lengkap)";
-      statusImunisasi = "Imunisasi belum lengkap";
-    } else if (total >= 4) {
-      label = `Lengkap (${total} Dosis)`;
-      statusImunisasi = "Imunisasi lengkap";
+      isLengkap = false;
+    } else {
+      // 1. Usia < 1 Tahun (Bayi)
+      if (ageYears !== null && ageYears < 1) {
+        if (total >= 3) {
+          label = `Lengkap (${total} Dosis Dasar Bayi)`;
+          statusImunisasi = "Imunisasi lengkap";
+          isLengkap = true;
+        } else {
+          label = `${total} Dosis (Belum Lengkap)`;
+          statusImunisasi = "Imunisasi belum lengkap";
+          isLengkap = false;
+        }
+      }
+      // 2. Usia 1 - 5 Tahun (Balita / Baduta)
+      else if (ageYears !== null && ageYears >= 1 && ageYears <= 5) {
+        if (total >= 4) {
+          label = `Lengkap (${total} Dosis)`;
+          statusImunisasi = "Imunisasi lengkap";
+          isLengkap = true;
+        } else {
+          label = `${total} Dosis (Belum Lengkap)`;
+          statusImunisasi = "Imunisasi belum lengkap";
+          isLengkap = false;
+        }
+      }
+      // 3. Usia > 5 Tahun (Anak Sekolah & Dewasa)
+      else {
+        if (total >= 4) {
+          label = `Lengkap (${total} Dosis)`;
+          statusImunisasi = "Imunisasi lengkap";
+          isLengkap = true;
+        } else {
+          label = `${total} Dosis (Belum Lengkap)`;
+          statusImunisasi = "Imunisasi belum lengkap";
+          isLengkap = false;
+        }
+      }
     }
 
-    if (dptVal === "Tidak Tahu") {
-      label = "Tidak Tahu";
-      statusImunisasi = "Tidak Tahu";
-    }
-
-    return { total, label, statusImunisasi };
+    return { total, label, statusImunisasi, isLengkap };
   },
 
   // 3. Hitung Minggu Epidemiologi (Week M1 - M52) dari Tanggal Onset
@@ -100,23 +136,36 @@ window.SIDIF_FORMS = {
     return diffHours <= 48 ? "< 48 Jam" : "> 48 Jam";
   },
 
-  // 6. Klasifikasi Kasus Difteri Sesuai Pedoman Resmi Surveilans Dinkes:
-  // 1. Hasil lab positif masuk kategori: Difteri Konfirmasi Lab
-  // 2. Hasil lab negatif masuk kategori: Kompatibel Klinis
-  // 3. Belum ada hasil lab tp ada spesimen yg diperiksa: Pending
-  // 4. Tidak ada hasil lab dan tidak periksa lab: Kompatibel Klinis
+  // 6. Klasifikasi Kasus Difteri Sesuai Pedoman Resmi Surveilans Kemenkes RI (Form DIF-1):
+  // 1. Jika ada hubungan epidemiologi diceklis -> Difteri Konfirmasi Hubungan Epidemiologi
+  // 2. Jika kultur lab positif (tanpa hub epid) -> Difteri Konfirmasi Lab
+  // 3. Belum ada hasil lab tapi ada spesimen dalam proses -> Pending (Menunggu Hasil Lab)
+  // 4. Lab negatif atau tidak diperiksa lab -> Difteri Kompatibel Klinis
   calculateClassification(data) {
     const kulturH = data.hasilKulturHidung || "";
     const kulturT = data.hasilKulturTenggorok || "";
     const tglH = data.tanggalAmbilHidung || "";
     const tglT = data.tanggalAmbilTenggorok || "";
     const hasilK = data.hasilKultur || "";
+    const isHubEpid = !!data.hubunganEpidemiologi;
     
     // Cek apakah ada spesimen yang pernah diambil / dalam proses
     const hasSpecimen = (tglH && tglH !== "-") || (tglT && tglT !== "-") || kulturH === "Pending" || kulturT === "Pending" || hasilK === "Pending";
+    const isPositif = (kulturH === "Positif" || kulturT === "Positif" || hasilK === "Positif");
 
-    // 1. Hasil lab positif -> Difteri Konfirmasi Lab
-    if (kulturH === "Positif" || kulturT === "Positif" || hasilK === "Positif") {
+    // 1. Hubungan Epidemiologi Terbukti
+    if (isHubEpid) {
+      return {
+        kategori: "Difteri Konfirmasi Hubungan Epidemiologi",
+        labelBadge: "Difteri Konfirmasi Hubungan Epidemiologi",
+        isKlb: true,
+        badgeClass: "bg-purple-100 text-purple-800 border-purple-300",
+        penjelasan: "Kasus memiliki kontak erat epidemiologis langsung dengan kasus difteri konfirmasi dalam masa inkubasi."
+      };
+    }
+
+    // 2. Hasil lab positif -> Difteri Konfirmasi Lab
+    if (isPositif) {
       return {
         kategori: "Difteri Konfirmasi Lab",
         labelBadge: "Difteri Konfirmasi Lab",
@@ -126,18 +175,18 @@ window.SIDIF_FORMS = {
       };
     }
 
-    // 2. Hasil lab negatif -> Kompatibel Klinis
+    // 3. Hasil lab negatif -> Difteri Kompatibel Klinis
     if ((kulturH === "Negatif" || kulturT === "Negatif" || hasilK === "Negatif") && kulturH !== "Positif" && kulturT !== "Positif") {
       return {
-        kategori: "Kompatibel Klinis",
-        labelBadge: "Kompatibel Klinis",
+        kategori: "Difteri Kompatibel Klinis",
+        labelBadge: "Difteri Kompatibel Klinis",
         isKlb: false,
         badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
         penjelasan: "Hasil kultur lab negatif, klasifikasi ditegakkan berdasarkan pemenuhan kriteria klinis difteri."
       };
     }
 
-    // 3. Belum ada hasil lab tapi ada spesimen yang diperiksa -> Pending
+    // 4. Belum ada hasil lab tapi ada spesimen yang diperiksa -> Pending
     if (kulturH === "Pending" || kulturT === "Pending" || hasilK === "Pending" || hasSpecimen) {
       return {
         kategori: "Pending",
@@ -148,10 +197,10 @@ window.SIDIF_FORMS = {
       };
     }
 
-    // 4. Tidak ada hasil lab dan tidak periksa lab -> Kompatibel Klinis
+    // 5. Tidak ada hasil lab dan tidak periksa lab -> Difteri Kompatibel Klinis
     return {
-      kategori: "Kompatibel Klinis",
-      labelBadge: "Kompatibel Klinis",
+      kategori: "Difteri Kompatibel Klinis",
+      labelBadge: "Difteri Kompatibel Klinis",
       isKlb: false,
       badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
       penjelasan: "Tidak dilakukan pemeriksaan lab / spesimen tidak diambil, klasifikasi ditegakkan berdasarkan gejala klinis."
@@ -389,8 +438,13 @@ window.SIDIF_FORMS = {
     }
 
     const padSeq = String(seq).padStart(3, "0");
-    const rawCode = `D-${provCode}${kabCode}${yr2}${padSeq}`; // D-351526001 (9 Digit Baku Kemenkes)
+    const digitsOnly = `${provCode}${kabCode}${yr2}${padSeq}`; // 351526001 (9 Digit Angka Baku)
+    const rawCode = `D-${digitsOnly}`; // D-351526001 (9 Digit Baku Kemenkes)
     const segmentedCode = `D-${provCode}.${kabCode}-${yrFull}-${padSeq}`; // D-35.15-2026-001 (Format Readable)
+
+    if (format === "digits") {
+      return digitsOnly;
+    }
 
     if (format === "boxes") {
       return {
