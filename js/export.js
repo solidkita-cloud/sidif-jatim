@@ -10,7 +10,7 @@ window.SIDIF_EXPORT = {
   checkSuperAdminAuth() {
     const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     if (!user || (user.role !== "superadmin" && user.username !== "SIDIF_PROV")) {
-      alert("Akses Terbatas: Berkas laporan surveilans berstatus data medis rahasia. Fitur unduh laporan hanya dapat diakses oleh akun Super Admin Dinas Kesehatan Provinsi Jawa Timur.");
+      alert("Akses Terbatas: Berkas laporan surveilans berstatus data medis rahasia. Fitur unduh laporan hanya dapat diakses oleh akun Super Admin.");
       return false;
     }
     return true;

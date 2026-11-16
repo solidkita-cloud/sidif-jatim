@@ -38,6 +38,18 @@ window.SIDIF_APP = {
 
   // Navigasi Tampilan Antarmuka
   showView(viewName) {
+    // 1. Kunci Privasi: Akses ke Tabel Kasus & Form DIF-3 wajib login
+    if (viewName === "table-data") {
+      const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+      if (!user) {
+        alert("Akses Terbatas: Rincian data kasus dan formulir DIF-3 berstatus data medis rahasia. Harap masuk (login) menggunakan akun petugas terlebih dahulu.");
+        this.showView("dashboard");
+        const loginBar = document.getElementById("login-bar");
+        if (loginBar) loginBar.classList.remove("hidden");
+        return;
+      }
+    }
+
     this.activeView = viewName;
     document.querySelectorAll(".app-view").forEach(el => el.classList.add("hidden"));
 
@@ -76,6 +88,7 @@ window.SIDIF_APP = {
   updateAuthUi(user) {
     const loginBtn = document.getElementById("header-login-btn");
     const userBadge = document.getElementById("header-user-badge");
+    const navTable = document.getElementById("nav-table");
     const navWorklist = document.getElementById("nav-worklist");
     const navAdmin = document.getElementById("nav-admin");
     const notifContainer = document.getElementById("notification-container");
@@ -92,6 +105,7 @@ window.SIDIF_APP = {
         document.getElementById("user-display-name").innerText = `${user.username} (${user.region})`;
         this.updateMyPresence("Online di Sistem");
       }
+      if (navTable) navTable.classList.remove("hidden");
       if (navWorklist) navWorklist.classList.remove("hidden");
       if (navAdmin && isSuperAdmin) {
         navAdmin.classList.remove("hidden");
@@ -108,6 +122,7 @@ window.SIDIF_APP = {
     } else {
       if (loginBtn) loginBtn.classList.remove("hidden");
       if (userBadge) userBadge.classList.add("hidden");
+      if (navTable) navTable.classList.add("hidden");
       if (navWorklist) navWorklist.classList.add("hidden");
       if (navAdmin) navAdmin.classList.add("hidden");
       if (adminExportBtn) adminExportBtn.classList.add("hidden");
@@ -368,6 +383,29 @@ window.SIDIF_APP = {
       age = window.SIDIF_FORMS.calculateAge(tglLahir, tglOnset || new Date().toISOString().substring(0, 10));
       const elUmur = document.getElementById("form-calc-umur");
       if (elUmur) elUmur.value = age.text;
+    }
+
+    // Pembaruan Dinamis Opsi & Hint DPT sesuai Umur dari Tanggal Lahir (< 1 th: 3x lengkap, >= 1 th: 4x lengkap)
+    const dptSelect = document.getElementById("form-dpt");
+    const dptHint = document.getElementById("form-dpt-hint");
+    if (dptSelect) {
+      const opt3 = dptSelect.querySelector('option[value="3"]');
+      const opt4 = dptSelect.querySelector('option[value="4"]');
+      if (tglLahir && age && age.text !== "-") {
+        if (age.years < 1) {
+          if (opt3) opt3.textContent = "3 Dosis (Lengkap Bayi < 1 Thn)";
+          if (opt4) opt4.textContent = "4 Dosis";
+          if (dptHint) dptHint.innerHTML = "💡 <b>Usia &lt; 1 Tahun:</b> 3 dosis DPT-HB-Hib dasar sudah dihitung <b>LENGKAP</b>.";
+        } else {
+          if (opt3) opt3.textContent = "3 Dosis (Belum Lengkap)";
+          if (opt4) opt4.textContent = "4 Dosis (Lengkap Booster Baduta)";
+          if (dptHint) dptHint.innerHTML = "💡 <b>Usia ≥ 1 Tahun:</b> Wajib 4 dosis (3 dasar + 1 booster 18 bln) untuk status <b>LENGKAP</b>.";
+        }
+      } else {
+        if (opt3) opt3.textContent = "3 Dosis";
+        if (opt4) opt4.textContent = "4 Dosis";
+        if (dptHint) dptHint.textContent = "💡 Status lengkap menyesuaikan tanggal lahir pasien.";
+      }
     }
 
     // 2. Status Imunisasi Sesuai Aturan Juknis Kemenkes (<1 th lengkap jika >=3, 1-5 th lengkap jika >=4)
@@ -726,7 +764,7 @@ window.SIDIF_APP = {
     const form = document.getElementById("main-dif3-form");
     if (form) form.reset();
 
-    document.getElementById("form-case-id").value = "";
+    if (document.getElementById("form-case-id")) document.getElementById("form-case-id").value = "";
     const userCurr = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     if (userCurr && userCurr.region !== "Provinsi Jawa Timur") {
       const regInput = document.getElementById("form-kabupaten");
@@ -740,28 +778,68 @@ window.SIDIF_APP = {
     if (document.getElementById("form-no-epid")) {
       document.getElementById("form-no-epid").value = userCurr ? window.SIDIF_FORMS.generateNoEpid(userCurr.region, null, null, "digits") : "";
     }
+
+    // Bersihkan Isian Pasien
+    ["form-nik", "form-nama", "form-nama-ibu", "form-telepon", "form-alamat", "form-rt-rw", "form-kelurahan"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    if (document.getElementById("form-no-nik-chk")) {
+      document.getElementById("form-no-nik-chk").checked = false;
+      if (document.getElementById("form-nik")) document.getElementById("form-nik").disabled = false;
+    }
+
+    // Bersihkan Tanggal-Tanggal
+    ["form-tgl-lahir", "form-tgl-onset", "form-tgl-terima-laporan", "form-tgl-pe", "form-tgl-terakhir-vax",
+     "form-tgl-ambil-hidung", "form-tgl-ambil-tenggorok", "form-tgl-kirim-hidung", "form-tgl-kirim-tenggorok",
+     "form-tgl-antibiotik", "form-tgl-ads", "form-tgl-sembuh", "form-tgl-meninggal"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+
+    // Uncheck Gejala & Komorbid
+    ["form-demam", "form-nyeri", "form-bullneck", "form-pseudo", "form-kontak-epi", "form-ads"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+
+    // Reset Dropdown Imunisasi & Hasil Lab
+    if (document.getElementById("form-dpt")) document.getElementById("form-dpt").value = "0";
+    if (document.getElementById("form-dt")) document.getElementById("form-dt").value = "0";
+    if (document.getElementById("form-td")) document.getElementById("form-td").value = "0";
+    if (document.getElementById("form-hasil-kultur-hidung")) document.getElementById("form-hasil-kultur-hidung").value = "Pending";
+    if (document.getElementById("form-hasil-kultur-tenggorok")) document.getElementById("form-hasil-kultur-tenggorok").value = "Pending";
+    if (document.getElementById("form-keadaan")) document.getElementById("form-keadaan").value = "Hidup / Sembuh";
+    this.handleKeadaanChange();
+
     if (document.getElementById("form-antibiotik")) document.getElementById("form-antibiotik").value = "Eritromisin (Oral 40 mg/kgBB/hari 14 Hari - Rekomendasi Utama)";
     this.handleAntibiotikChange();
     this.handleAdsChange();
     this.updateLabConditionalFields();
-    document.getElementById("form-calc-umur").value = "-";
-    document.getElementById("form-calc-dosis").value = "0 Dosis (Belum Pernah)";
-    document.getElementById("form-calc-klasifikasi").value = "Suspek Difteri";
-    document.getElementById("form-calc-minggu-epid").value = "M01";
-    document.getElementById("form-calc-timeliness-pe").value = "< 24 Jam";
-    
+
+    // Reset Kontak Erat dan Tabel Kontak Dinamis
+    ["form-ads-dosis", "form-kontak-rumah", "form-prof-rumah", "form-kontak-sekolah", "form-prof-sekolah",
+     "form-kontak-tetangga", "form-prof-tetangga", "form-kontak-bermain", "form-prof-bermain", "form-keterangan"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+
+    const contactTbody = document.getElementById("contacts-entry-table-body");
+    if (contactTbody) {
+      contactTbody.innerHTML = "";
+      this.addContactRow({ hubungan: "Serumah", profilaksis: "Ya" });
+      this.addContactRow({ hubungan: "Sekolah / Bermain", profilaksis: "Ya" });
+    }
+
     this.selectGender("L");
 
-    document.getElementById("form-ads-dosis").value = "";
-    document.getElementById("form-kontak-rumah").value = "";
-    document.getElementById("form-prof-rumah").value = "";
-    document.getElementById("form-kontak-sekolah").value = "";
-    document.getElementById("form-prof-sekolah").value = "";
-    document.getElementById("form-kontak-tetangga").value = "";
-    document.getElementById("form-prof-tetangga").value = "";
-    document.getElementById("form-kontak-bermain").value = "";
-    document.getElementById("form-prof-bermain").value = "";
-    document.getElementById("form-keterangan").value = "";
+    if (document.getElementById("form-calc-umur")) document.getElementById("form-calc-umur").value = "-";
+    if (document.getElementById("form-calc-dosis")) document.getElementById("form-calc-dosis").value = "0 Dosis (Belum Pernah)";
+    if (document.getElementById("form-calc-klasifikasi")) document.getElementById("form-calc-klasifikasi").value = "Suspek Difteri";
+    if (document.getElementById("form-calc-minggu-epid")) document.getElementById("form-calc-minggu-epid").value = "M01";
+    if (document.getElementById("form-calc-timeliness-pe")) document.getElementById("form-calc-timeliness-pe").value = "< 24 Jam";
+
+    this.updateLiveCalculations();
   },
 
   // Pilihan Gender Visual (Biru Laki-laki vs Pink Perempuan)
@@ -824,7 +902,7 @@ window.SIDIF_APP = {
   openSuperAdminExportModal() {
     const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     if (!user || (user.role !== "superadmin" && user.username !== "SIDIF_PROV")) {
-      alert("Akses Terbatas: Hanya Super Admin Dinas Kesehatan Provinsi Jawa Timur yang berwenang membuka portal unduh laporan eksekutif.");
+      alert("Akses Terbatas: Hanya Super Admin yang berwenang membuka portal unduh laporan eksekutif.");
       return;
     }
 
@@ -1338,6 +1416,7 @@ window.SIDIF_APP = {
     this.triggerRealtimeNotification(saved);
     alert(`Data kasus difteri atas nama ${saved.nama} (No. Epid: ${saved.noEpid}) berhasil disimpan dan diselaraskan ke database provinsi.`);
 
+    this.resetFormFields();
     this.showView("table-data");
   },
 
