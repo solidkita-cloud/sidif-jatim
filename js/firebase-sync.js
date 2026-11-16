@@ -29,6 +29,11 @@ window.SIDIF_CLOUD = {
         // Cek dan Unggah Data Awal jika Database Cloud Masih Kosong
         this.seedCloudIfEmpty();
 
+        // Segarkan kehadiran (presence) ke Cloud setelah koneksi stabil
+        if (window.SIDIF_APP && window.SIDIF_APP.updateMyPresence) {
+          window.SIDIF_APP.updateMyPresence();
+        }
+
       } catch (err) {
         console.warn("SIDIF: Gagal menginisialisasi Google Cloud Firestore, menggunakan mode lokal:", err.message);
         this.isOnline = false;
@@ -102,21 +107,70 @@ window.SIDIF_CLOUD = {
 
     // Pasang Listener Real-Time untuk Ruang Koordinasi & Chat Tim Difteri
     try {
+      let isInitialChatBatch = true;
       const chatCol = this.db.collection("difteri_chat_2026").orderBy("timestamp", "asc").limitToLast(50);
       chatCol.onSnapshot((snapshot) => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === "added") {
             const msg = change.doc.data();
             if (window.SIDIF_APP && window.SIDIF_APP.receiveChatMessage) {
-              window.SIDIF_APP.receiveChatMessage(msg);
+              window.SIDIF_APP.receiveChatMessage(msg, isInitialChatBatch);
             }
           }
         });
+        isInitialChatBatch = false;
       }, (err) => {
         console.warn("Firestore chat listener warning:", err.message);
       });
     } catch (e) {
       console.warn("Chat listener setup bypassed:", e);
+    }
+
+    // Pasang Listener Real-Time untuk Status Petugas Online (Presence Lintas Laptop)
+    try {
+      const presenceCol = this.db.collection("difteri_presence_2026");
+      presenceCol.onSnapshot((snapshot) => {
+        const presenceMap = {};
+        const now = Date.now();
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          // Anggap aktif jika mengirim sinyal dalam 3 menit terakhir
+          if (now - (data.lastPing || 0) < 3 * 60 * 1000) {
+            presenceMap[data.username] = data;
+          }
+        });
+        if (window.SIDIF_APP && window.SIDIF_APP.updateCloudPresenceMap) {
+          window.SIDIF_APP.updateCloudPresenceMap(presenceMap);
+        }
+      }, (err) => {
+        console.warn("Firestore presence listener warning:", err.message);
+      });
+    } catch (e) {
+      console.warn("Presence listener setup bypassed:", e);
+    }
+  },
+
+  // Sinkronkan Status Presence ke Cloud Firestore
+  async syncPresenceToCloud(presenceData) {
+    if (!this.db || !this.isOnline || !presenceData || !presenceData.username) return false;
+    try {
+      await this.db.collection("difteri_presence_2026").doc(presenceData.username).set(presenceData, { merge: true });
+      return true;
+    } catch (e) {
+      console.warn("Gagal sinkronisasi status presence ke Cloud:", e);
+      return false;
+    }
+  },
+
+  // Hapus Status Presence dari Cloud Firestore (saat Logout atau Tutup Tab)
+  async removePresenceFromCloud(username) {
+    if (!this.db || !this.isOnline || !username) return false;
+    try {
+      await this.db.collection("difteri_presence_2026").doc(username).delete();
+      return true;
+    } catch (e) {
+      console.warn("Gagal menghapus status presence dari Cloud:", e);
+      return false;
     }
   },
 

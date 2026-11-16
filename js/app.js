@@ -1636,11 +1636,11 @@ window.SIDIF_APP = {
     this.loadChatMessages();
     this.updateMyPresence();
 
-    // Heartbeat setiap 12 detik untuk memperbarui status online
+    // Heartbeat setiap 15 detik untuk memperbarui status online
     if (this._presenceInterval) clearInterval(this._presenceInterval);
     this._presenceInterval = setInterval(() => {
       this.updateMyPresence();
-    }, 12000);
+    }, 15000);
 
     // Sinkronisasi Lintas Tab / Multi-Akun Instan via BroadcastChannel
     try {
@@ -1667,6 +1667,14 @@ window.SIDIF_APP = {
         this.renderChatMessages();
       }
     });
+
+    // Otomatis hapus status presence saat tab atau jendela ditutup
+    window.addEventListener("beforeunload", () => {
+      const u = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+      if (u) {
+        this.removeOnlinePresence(u.username);
+      }
+    });
   },
 
   updateMyPresence(actionText = null) {
@@ -1677,16 +1685,16 @@ window.SIDIF_APP = {
     } catch(e) { map = {}; }
 
     const now = Date.now();
-    // Bersihkan sesi yang tidak aktif lebih dari 10 menit
+    // Bersihkan sesi yang tidak aktif lebih dari 3 menit
     const cleaned = {};
     Object.keys(map).forEach(k => {
-      if (now - (map[k].lastPing || 0) < 10 * 60 * 1000) {
+      if (now - (map[k].lastPing || 0) < 3 * 60 * 1000) {
         cleaned[k] = map[k];
       }
     });
 
     if (user) {
-      cleaned[user.username] = {
+      const myPresence = {
         username: user.username,
         name: `Petugas ${user.region.replace(/^Kabupaten\s+/i, "Kab. ").replace(/^Kota\s+/i, "Kota ")}`,
         region: user.region,
@@ -1694,6 +1702,12 @@ window.SIDIF_APP = {
         status: actionText || (cleaned[user.username] ? cleaned[user.username].status : "Sedang Memantau Sistem"),
         lastPing: now
       };
+      cleaned[user.username] = myPresence;
+
+      // Sinkronkan ke Google Cloud Firestore agar laptop lain seketika tahu
+      if (window.SIDIF_CLOUD && window.SIDIF_CLOUD.isOnline) {
+        window.SIDIF_CLOUD.syncPresenceToCloud(myPresence);
+      }
     }
 
     localStorage.setItem("sidif_active_presence_map", JSON.stringify(cleaned));
@@ -1706,6 +1720,41 @@ window.SIDIF_APP = {
     } catch(e) {}
   },
 
+  // Perbarui presence dari Cloud Firestore (Multi-Laptop / Lintas Perangkat)
+  updateCloudPresenceMap(cloudMap) {
+    if (!cloudMap) return;
+    let localMap = {};
+    try {
+      localMap = JSON.parse(localStorage.getItem("sidif_active_presence_map") || "{}");
+    } catch(e) { localMap = {}; }
+
+    const now = Date.now();
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+
+    const merged = {};
+    // Masukkan data lokal aktif (< 3 menit)
+    Object.keys(localMap).forEach(k => {
+      if (now - (localMap[k].lastPing || 0) < 3 * 60 * 1000) {
+        merged[k] = localMap[k];
+      }
+    });
+
+    // Masukkan data cloud aktif (< 3 menit)
+    Object.keys(cloudMap).forEach(k => {
+      if (now - (cloudMap[k].lastPing || 0) < 3 * 60 * 1000) {
+        merged[k] = cloudMap[k];
+      }
+    });
+
+    // Pertahankan presence diri sendiri jika aktif
+    if (user && merged[user.username]) {
+      merged[user.username].lastPing = now;
+    }
+
+    localStorage.setItem("sidif_active_presence_map", JSON.stringify(merged));
+    this.renderOnlinePresence();
+  },
+
   removeOnlinePresence(username) {
     let map = {};
     try {
@@ -1716,6 +1765,10 @@ window.SIDIF_APP = {
       delete map[username];
       localStorage.setItem("sidif_active_presence_map", JSON.stringify(map));
       this.renderOnlinePresence();
+    }
+
+    if (window.SIDIF_CLOUD && window.SIDIF_CLOUD.isOnline && username) {
+      window.SIDIF_CLOUD.removePresenceFromCloud(username);
     }
   },
 
@@ -1741,7 +1794,7 @@ window.SIDIF_APP = {
     } catch(e) { map = {}; }
 
     const now = Date.now();
-    const activeList = Object.values(map).filter(o => now - (o.lastPing || 0) < 10 * 60 * 1000);
+    const activeList = Object.values(map).filter(o => now - (o.lastPing || 0) < 3 * 60 * 1000);
 
     const count = activeList.length;
     if (countEl) countEl.innerText = `${count} Petugas Aktif`;
@@ -1937,7 +1990,52 @@ window.SIDIF_APP = {
         this.saveChatMessages();
         this.renderChatMessages();
         this.playNotificationSound();
+
+        // Selaraskan juga jawaban bot ke Cloud agar terlihat di laptop lawan bicara
+        if (window.SIDIF_CLOUD && window.SIDIF_CLOUD.isOnline) {
+          window.SIDIF_CLOUD.sendChatMessageToCloud(botReply);
+        }
       }, 350);
+    }
+  },
+
+  // Terima Pesan Real-Time dari Google Cloud Firestore (Lintas Laptop)
+  receiveChatMessage(msg, isInitialSync = false) {
+    if (!msg || !msg.text) return;
+    if (!this.chatMessages) this.chatMessages = [];
+
+    // Cek duplikasi berdasarkan ID atau (timestamp + sender)
+    const exists = this.chatMessages.some(m => m.id === msg.id || (m.timestamp && m.timestamp === msg.timestamp && m.sender === msg.sender));
+    if (exists) return;
+
+    this.chatMessages.push(msg);
+    this.chatMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    try {
+      localStorage.setItem("sidif_live_chat_feed", JSON.stringify(this.chatMessages));
+    } catch(e) {}
+
+    this.renderChatMessages();
+
+    // Notifikasi suara dan lencana unread jika bukan sinkronisasi awal dan bukan pesan dari diri sendiri
+    if (!isInitialSync) {
+      const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+      const currentUsername = currentUser ? currentUser.username : null;
+      const isFromMe = currentUsername && (msg.senderUsername === currentUsername || (msg.sender && msg.sender.startsWith(currentUsername)));
+
+      if (!isFromMe) {
+        const box = document.getElementById("chat-box");
+        const isDrawerOpen = box && !box.classList.contains("hidden");
+        if (!isDrawerOpen) {
+          const unreadEl = document.getElementById("chat-unread-badge");
+          if (unreadEl) {
+            const currentCount = parseInt(unreadEl.innerText || "0", 10) || 0;
+            unreadEl.innerText = currentCount + 1;
+            unreadEl.classList.remove("hidden");
+          }
+        }
+        this.playNotificationSound();
+      }
     }
   },
 
