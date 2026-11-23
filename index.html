@@ -356,15 +356,15 @@
 
             <!-- Leaflet Container Wrapper -->
             <div class="relative w-full rounded-lg overflow-hidden border border-slate-200">
-              <button id="btn-reset-map" onclick="window.SIDIF_APP.resetToProvinceMap()" class="absolute top-3 right-3 z-[400] bg-white/95 hover:bg-white text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg shadow-md border border-slate-300 flex items-center gap-1.5 transition cursor-pointer hover:text-emerald-700 hover:border-emerald-500">
-                <svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                <span>Kembali ke Seluruh Jatim</span>
+              <button id="btn-reset-map" onclick="window.SIDIF_APP.resetToProvinceMap()" class="absolute top-3 right-3 z-[400] bg-white/95 hover:bg-white text-slate-800 text-xs font-bold px-3 py-2 rounded-lg shadow-md border-2 border-emerald-600 flex items-center gap-1.5 transition cursor-pointer hover:text-emerald-700 hover:bg-emerald-50">
+                <svg class="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>🔄 Tampilan Provinsi (Reset)</span>
               </button>
               <div id="map-container" class="w-full h-[380px] bg-slate-100 relative z-10"></div>
             </div>
           </div>
 
-          <!-- Peta Legenda Keterangan -->
+          <!-- Peta Legenda Keterangan: Biner Sesuai Arahan (Positif Lab vs Negatif/Non-KLB) -->
           <div class="mt-3 pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between text-xs text-slate-700 gap-2">
             <div class="flex flex-wrap items-center gap-3">
               <span class="font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
@@ -372,15 +372,11 @@
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="w-3.5 h-3.5 rounded bg-[#DC2626] border border-red-700 shrink-0"></span>
-                <span>KLB Difteri: <strong id="legend-klb-count" class="font-bold text-red-700">10 Kab/Kota (26,3%)</strong></span>
+                <span>Positif Lab (KLB): <strong id="legend-klb-count" class="font-bold text-red-700">10 Kab/Kota (26,3%)</strong></span>
               </span>
               <span class="flex items-center gap-1.5">
                 <span class="w-3.5 h-3.5 rounded bg-[#FED7AA] border border-orange-400 shrink-0"></span>
-                <span>Kompatibel Klinis: <strong id="legend-klinis-count" class="font-bold text-amber-800">21 Kab/Kota (55,3%)</strong></span>
-              </span>
-              <span class="flex items-center gap-1.5">
-                <span class="w-3.5 h-3.5 rounded bg-white border border-slate-400 shrink-0"></span>
-                <span>Bebas Kasus: <strong id="legend-bebas-count" class="font-bold text-slate-600">7 Kab/Kota (18,4%)</strong></span>
+                <span>Negatif / Non-KLB: <strong id="legend-nonklb-count" class="font-bold text-slate-700">28 Kab/Kota (73,7%)</strong></span>
               </span>
             </div>
             <span class="text-[11px] text-slate-400 italic">Batas Wilayah: Garis Putus-Putus</span>
@@ -388,12 +384,13 @@
         </div>
 
         <!-- RIGHT SIDE: DETAIL KARTU WILAYAH TERPILIH -->
-        <div class="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between shadow-xs">
+        <div class="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between shadow-xs relative">
           <div>
             <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3 gap-2">
               <h4 id="card-region-name" class="font-black text-xl text-slate-800 break-words leading-tight">Seluruh Jawa Timur</h4>
-              <button onclick="window.SIDIF_APP.resetToProvinceMap()" class="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition cursor-pointer shrink-0" title="Kembalikan tampilan peta ke seluruh provinsi">
-                Lihat Provinsi
+              <button onclick="window.SIDIF_APP.resetToProvinceMap()" class="text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-3 py-1.5 rounded-lg transition cursor-pointer shrink-0 flex items-center gap-1 shadow-xs" title="Kembalikan tampilan peta ke seluruh provinsi">
+                <svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>Lihat Provinsi</span>
               </button>
             </div>
 
@@ -417,9 +414,9 @@
             </div>
 
             <!-- Penjelasan Epidemiologi Bahasa Manusia -->
-            <div class="mt-4 p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
+            <div class="mt-4 p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 mb-8">
               <span class="font-bold text-slate-700 block mb-1">Keterangan Resmi Surveilans:</span>
-              <p id="card-region-explanation" class="leading-relaxed break-words whitespace-normal max-h-48 overflow-y-auto">
+              <p id="card-region-explanation" class="leading-relaxed break-words whitespace-normal max-h-36 overflow-y-auto pr-1">
                 Data kumulatif Jawa Timur mencakup 277 kasus difteri dengan 17 kasus konfirmasi lab kultur BBLKM yang tersebar di 10 Kabupaten/Kota, serta 4 kasus kematian (Tuban: 2, Gresik: 1, Sumenep: 1).
               </p>
             </div>
@@ -584,7 +581,7 @@
         <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
           <div>
             <h4 class="text-sm font-bold text-slate-800">Persentase Kontak Erat Kasus Difteri & Pemberian Profilaksis (Slide 7 PPT)</h4>
-            <p class="text-xs text-slate-500">Kontak erat terbanyak berasal dari kontak serumah yaitu sebanyak <strong>690 orang (83.3%)</strong></p>
+            <p id="contact-tracing-subtext" class="text-xs text-slate-500">Kontak erat terbanyak berasal dari kontak serumah yaitu sebanyak <strong>690 orang (83.3%)</strong></p>
           </div>
           <span class="text-xs font-bold text-[#0F7A4F] bg-emerald-50 border border-emerald-200 px-3 py-1 rounded">Cakupan Profilaksis: <span id="contact-prof-pct">98.1%</span></span>
         </div>

@@ -92,7 +92,7 @@ window.SIDIF_CLOUD = {
 
       if (hasChanges && remoteCases.length > 0) {
         // Selaraskan ke LocalStorage
-        localStorage.setItem("sidif_cases_v3", JSON.stringify(remoteCases));
+        localStorage.setItem("sidif_cases_v4", JSON.stringify(remoteCases));
         
         // Refresh Tampilan jika pengguna sedang di Dashboard atau Tabel
         if (window.SIDIF_APP.activeView === "dashboard") {

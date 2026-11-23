@@ -46,8 +46,15 @@ window.SIDIF_MAP = {
       
       this.regionsData = {};
       this.rawMeta = jsonWilayah.meta;
+      this.wilayahList = jsonWilayah.wilayah;
       jsonWilayah.wilayah.forEach(w => {
-        this.regionsData[w.nama.toLowerCase()] = w;
+        const kNama = w.nama.toLowerCase();
+        const kDisp = w.displayName.toLowerCase();
+        this.regionsData[kNama] = w;
+        this.regionsData[kDisp] = w;
+        if (kNama === "kota batu" || kDisp === "kota batu") {
+          this.regionsData["batu"] = w;
+        }
       });
 
       // 2. Ambil berkas GeoJSON batas 38 Kab/Kota Jawa Timur
@@ -98,20 +105,42 @@ window.SIDIF_MAP = {
     return { kasus, positif, ads, meninggal };
   },
 
-  // Perbarui Angka dan Persentase pada Legenda Peta Depan
+  // Helper Pencocokan Rekam Data Wilayah Bebas Ambiguitas (Kabupaten vs Kota)
+  getRegionRecord(featureOrName) {
+    if (!featureOrName) return null;
+    if (typeof featureOrName === "object" && featureOrName.properties) {
+      const p = featureOrName.properties;
+      const disp = (p.displayName || "").toLowerCase();
+      if (this.regionsData[disp]) return this.regionsData[disp];
+      const type = (p.type || "").toLowerCase();
+      const clean = (p.cleanName || p.name || "").toLowerCase();
+      if (this.regionsData[`${type} ${clean}`]) return this.regionsData[`${type} ${clean}`];
+      if (this.regionsData[clean]) return this.regionsData[clean];
+    }
+    const str = String(featureOrName).trim().toLowerCase();
+    if (this.regionsData[str]) return this.regionsData[str];
+    if (this.regionsData["kabupaten " + str]) return this.regionsData["kabupaten " + str];
+    if (this.regionsData["kota " + str]) return this.regionsData["kota " + str];
+    const clean = str.replace(/^kabupaten\s+/i, "").replace(/^kota\s+/i, "").trim();
+    if (this.regionsData[clean]) return this.regionsData[clean];
+    return null;
+  },
+
+  // Perbarui Angka dan Persentase pada Legenda Peta Depan (Biner Sesuai Arahan: Positif Lab vs Negatif/Non-KLB)
   updateLegendCounts() {
     let klbKabCount = 0;
-    let klinisKabCount = 0;
-    let bebasKabCount = 0;
+    let nonKlbKabCount = 0;
     const totalKabKota = 38;
 
-    Object.values(this.regionsData).forEach(w => {
+    const list = this.wilayahList || Object.values(this.regionsData);
+    const uniqueMap = new Map();
+    list.forEach(w => uniqueMap.set(w.displayName, w));
+
+    uniqueMap.forEach(w => {
       if ((w.kasusKonfirmasi || 0) > 0) {
         klbKabCount++;
-      } else if ((w.kasusKlinis || 0) > 0 || (w.kasus || 0) > 0) {
-        klinisKabCount++;
       } else {
-        bebasKabCount++;
+        nonKlbKabCount++;
       }
     });
 
@@ -119,18 +148,15 @@ window.SIDIF_MAP = {
     const fmt = (n) => (n || 0).toLocaleString("id-ID");
 
     const pKlb = ((klbKabCount / totalKabKota) * 100).toFixed(1).replace(".", ",");
-    const pKlinis = ((klinisKabCount / totalKabKota) * 100).toFixed(1).replace(".", ",");
-    const pBebas = ((bebasKabCount / totalKabKota) * 100).toFixed(1).replace(".", ",");
+    const pNonKlb = ((nonKlbKabCount / totalKabKota) * 100).toFixed(1).replace(".", ",");
 
     const elTotal = document.getElementById("legend-total-kasus");
     const elKlb = document.getElementById("legend-klb-count");
-    const elKlinis = document.getElementById("legend-klinis-count");
-    const elBebas = document.getElementById("legend-bebas-count");
+    const elNonKlb = document.getElementById("legend-nonklb-count");
 
     if (elTotal) elTotal.innerText = fmt(mProv.kasus);
     if (elKlb) elKlb.innerText = `${fmt(klbKabCount)} Kab/Kota (${pKlb}%)`;
-    if (elKlinis) elKlinis.innerText = `${fmt(klinisKabCount)} Kab/Kota (${pKlinis}%)`;
-    if (elBebas) elBebas.innerText = `${fmt(bebasKabCount)} Kab/Kota (${pBebas}%)`;
+    if (elNonKlb) elNonKlb.innerText = `${fmt(nonKlbKabCount)} Kab/Kota (${pNonKlb}%)`;
   },
 
   // Tampilkan Kartu Ringkasan Seluruh Provinsi Jawa Timur
@@ -144,6 +170,7 @@ window.SIDIF_MAP = {
     if (!this.geoJsonLayer || !this.mapInstance) return;
 
     if (!regionName || regionName === "all" || regionName === "Jawa Timur" || regionName === "Provinsi Jawa Timur") {
+      this.mapInstance.closePopup();
       this.mapInstance.setView([-7.75, 112.5], 8);
       if (this.selectedLayer) {
         this.geoJsonLayer.resetStyle(this.selectedLayer);
@@ -153,12 +180,14 @@ window.SIDIF_MAP = {
       return;
     }
 
-    const cleanTarget = regionName.replace("Kabupaten ", "").replace("Kota ", "").trim().toLowerCase();
+    const self = this;
+    const targetRecord = this.getRegionRecord(regionName);
+    const targetDisp = targetRecord ? targetRecord.displayName.toLowerCase() : regionName.toLowerCase();
     let targetLayer = null;
 
     this.geoJsonLayer.eachLayer(layer => {
-      const pName = (layer.feature.properties.cleanName || layer.feature.properties.name || "").toLowerCase();
-      if (pName === cleanTarget || pName.includes(cleanTarget)) {
+      const pDisp = (layer.feature.properties.displayName || "").toLowerCase();
+      if (pDisp === targetDisp || pDisp.includes(targetDisp) || targetDisp.includes(pDisp)) {
         targetLayer = layer;
       }
     });
@@ -169,19 +198,19 @@ window.SIDIF_MAP = {
       }
       this.selectedLayer = targetLayer;
       targetLayer.setStyle({
-        weight: 4,
+        weight: 3.5,
         color: "#0F7A4F",
         fillOpacity: 0.95
       });
       targetLayer.bringToFront();
 
       this.mapInstance.fitBounds(targetLayer.getBounds(), {
-        padding: [30, 30],
-        maxZoom: 11
+        padding: [40, 40],
+        maxZoom: 10
       });
 
       const displayName = targetLayer.feature.properties.displayName || targetLayer.feature.properties.name;
-      const data = this.regionsData[cleanTarget] || { kasus: 0, dpt3: 0, targetBalita: 10000 };
+      const data = self.getRegionMetrics(displayName);
       window.SIDIF_APP.updateRegionDetailCard(data, displayName);
     }
   },
@@ -208,20 +237,20 @@ window.SIDIF_MAP = {
     });
 
     // Hitung ulang per wilayah dari kasus terverifikasi
+    const self = this;
     filtered.forEach(c => {
-      const cleanKab = c.kabupaten.replace("Kabupaten ", "").replace("Kota ", "").toLowerCase();
-      if (this.regionsData[cleanKab]) {
-        if (c.klasifikasiKlinis === "Konfirmasi Lab") {
-          this.regionsData[cleanKab].kasusKonfirmasi = (this.regionsData[cleanKab].kasusKonfirmasi || 0) + 1;
+      const reg = self.getRegionRecord(c.kabupaten);
+      if (reg) {
+        if (c.klasifikasiKlinis === "Konfirmasi Lab" || c.hasilKultur === "Positif") {
+          reg.kasusKonfirmasi = (reg.kasusKonfirmasi || 0) + 1;
         } else {
-          this.regionsData[cleanKab].kasusKlinis = (this.regionsData[cleanKab].kasusKlinis || 0) + 1;
+          reg.kasusKlinis = (reg.kasusKlinis || 0) + 1;
         }
-        this.regionsData[cleanKab].kasus = this.regionsData[cleanKab].kasusKonfirmasi + this.regionsData[cleanKab].kasusKlinis;
+        reg.kasus = (reg.kasusKonfirmasi || 0) + (reg.kasusKlinis || 0);
       }
     });
 
     // Terapkan ulang style warna pada poligon peta
-    const self = this;
     this.geoJsonLayer.eachLayer(function(layer) {
       const style = self.getFeatureStyle(layer.feature);
       layer.setStyle(style);
@@ -230,7 +259,6 @@ window.SIDIF_MAP = {
     // Perbarui kartu detail wilayah yang aktif & angka legenda
     this.updateLegendCounts();
     if (this.selectedLayer) {
-      const cleanName = (this.selectedLayer.feature.properties.cleanName || this.selectedLayer.feature.properties.name || "").toLowerCase();
       const displayName = this.selectedLayer.feature.properties.displayName || this.selectedLayer.feature.properties.name;
       const data = this.getRegionMetrics(displayName);
       window.SIDIF_APP.updateRegionDetailCard(data, displayName);
@@ -243,8 +271,7 @@ window.SIDIF_MAP = {
   // 2. SOFT PEACH/AMBER: Ada kasus klinis tapi lab negatif / pending
   // 3. PUTIH: Tidak ada kasus sama sekali (0 Kasus / Bebas Difteri)
   getFeatureStyle(feature) {
-    const rawName = (feature.properties.name || feature.properties.cleanName || "").toLowerCase();
-    const data = this.regionsData[rawName] || { kasus: 0, kasusKonfirmasi: 0, kasusKlinis: 0 };
+    const data = this.getRegionRecord(feature) || { kasus: 0, kasusKonfirmasi: 0, kasusKlinis: 0 };
 
     // A. Merah: Positif Kultur Lab (KLB)
     if (data.kasusKonfirmasi > 0) {
@@ -258,7 +285,7 @@ window.SIDIF_MAP = {
       };
     }
 
-    // B. Warna Soft Warm Peach/Amber: Kompatibel Klinis
+    // B. Warna Soft Warm Peach/Amber: Kompatibel Klinis (Non-KLB Lab)
     if (data.kasusKlinis > 0 || data.kasus > 0) {
       return {
         fillColor: "#FED7AA",
@@ -364,7 +391,13 @@ window.SIDIF_MAP = {
             </div>
           </div>
         `;
-        layer.bindPopup(popupHtml, { maxWidth: 280, closeButton: false, offset: [0, -5] }).openPopup();
+        layer.bindPopup(popupHtml, { 
+          maxWidth: 280, 
+          closeButton: false, 
+          offset: [0, -5],
+          autoPan: true,
+          autoPanPadding: [50, 50]
+        }).openPopup();
 
         // Update Dropdown Wilayah & Filter Dashboard serta Kartu Rincian Samping
         if (window.SIDIF_APP && window.SIDIF_APP.onRegionSelectedFromMap) {

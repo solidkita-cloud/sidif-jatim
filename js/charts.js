@@ -540,6 +540,12 @@ window.SIDIF_CHARTS = {
       const pctProf = tot > 0 ? ((totProf / tot) * 100).toFixed(1) : "0";
       elProf.innerText = `${pctProf}%`;
     }
+
+    const elSubtext = document.getElementById("contact-tracing-subtext");
+    if (elSubtext && tot > 0) {
+      const pctKr = ((kr / tot) * 100).toFixed(1);
+      elSubtext.innerHTML = `Kontak erat terbanyak berasal dari kontak serumah yaitu sebanyak <strong>${kr.toLocaleString('id-ID')} orang (${pctKr}%)</strong>`;
+    }
   },
 
   // 7. Grafik Proporsi Terapi ADS (Slide 8 PPT: ADS Diberikan / Seluruh Kasus Difteri)
