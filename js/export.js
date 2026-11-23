@@ -102,6 +102,9 @@ window.SIDIF_EXPORT = {
     let grandTotalKlinis = 0;
     let grandTotalMeninggal = 0;
     let grandTotalAds = 0;
+    let grandTotalImunLengkap = 0;
+    let grandTotalImunBelum = 0;
+    let grandTotalTidakImun = 0;
     let grandTotalKontak = 0;
     let grandTotalProf = 0;
 
@@ -113,12 +116,27 @@ window.SIDIF_EXPORT = {
       });
 
       const totalKasus = regionalCases.length;
-      const positif = regionalCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
+      const positif = regionalCases.filter(c => c.hasilKultur === "Positif" || c.hasilKulturHidung === "Positif" || c.hasilKulturTenggorok === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
       const klinis = regionalCases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis" || c.klasifikasiKlinis === "Difteri Kompatibel Klinis" || (!c.hasilKultur && c.klasifikasiKlinis !== "Konfirmasi Lab")).length;
       const meninggal = regionalCases.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
       const cfr = totalKasus > 0 ? ((meninggal / totalKasus) * 100).toFixed(1) + "%" : "0.0%";
       const ads = regionalCases.filter(c => c.adsDiberikan).length;
       const adsPct = totalKasus > 0 ? ((ads / totalKasus) * 100).toFixed(1) + "%" : "0.0%";
+
+      // Hitung rincian status imunisasi
+      let imunLengkap = 0;
+      let imunBelum = 0;
+      let tidakImun = 0;
+      regionalCases.forEach(c => {
+        const imm = (c.statusImunisasi || "").toLowerCase();
+        if (imm.includes("tidak") || c.totalDosis === 0) {
+          tidakImun++;
+        } else if ((imm.includes("lengkap") && !imm.includes("belum")) || c.totalDosis >= 4) {
+          imunLengkap++;
+        } else {
+          imunBelum++;
+        }
+      });
 
       // Hitung total kontak erat & profilaksis
       let kontakCount = 0;
@@ -145,6 +163,9 @@ window.SIDIF_EXPORT = {
       grandTotalKlinis += klinis;
       grandTotalMeninggal += meninggal;
       grandTotalAds += ads;
+      grandTotalImunLengkap += imunLengkap;
+      grandTotalImunBelum += imunBelum;
+      grandTotalTidakImun += tidakImun;
       grandTotalKontak += kontakCount;
       grandTotalProf += profCount;
 
@@ -153,12 +174,15 @@ window.SIDIF_EXPORT = {
         "Kode Kemendagri": r.code,
         "Kabupaten / Kota": r.name,
         "Total Kasus Difteri": totalKasus,
-        "Jumlah Konfirmasi Lab (Positif Toksigenik)": positif,
+        "Jumlah Konfirmasi Lab (Positif)": positif,
         "Jumlah Kompatibel Klinis": klinis,
         "Jumlah Meninggal Dunia": meninggal,
         "Case Fatality Rate (CFR)": cfr,
         "Kasus Diberi ADS": ads,
         "Cakupan Terapi ADS": adsPct,
+        "Imunisasi Lengkap": imunLengkap,
+        "Imunisasi Belum Lengkap": imunBelum,
+        "Tidak Diimunisasi / 0 Dosis": tidakImun,
         "Jumlah Kontak Erat Terlacak": kontakCount,
         "Kontak Diberi Profilaksis (Eritromisin)": profCount,
         "Cakupan Profilaksis Kontak": profPct,
@@ -176,12 +200,15 @@ window.SIDIF_EXPORT = {
       "Kode Kemendagri": "3500",
       "Kabupaten / Kota": "TOTAL PROVINSI JAWA TIMUR",
       "Total Kasus Difteri": grandTotalKasus,
-      "Jumlah Konfirmasi Lab (Positif Toksigenik)": grandTotalPositif,
+      "Jumlah Konfirmasi Lab (Positif)": grandTotalPositif,
       "Jumlah Kompatibel Klinis": grandTotalKlinis,
       "Jumlah Meninggal Dunia": grandTotalMeninggal,
       "Case Fatality Rate (CFR)": grandCfr,
       "Kasus Diberi ADS": grandTotalAds,
       "Cakupan Terapi ADS": grandAdsPct,
+      "Imunisasi Lengkap": grandTotalImunLengkap,
+      "Imunisasi Belum Lengkap": grandTotalImunBelum,
+      "Tidak Diimunisasi / 0 Dosis": grandTotalTidakImun,
       "Jumlah Kontak Erat Terlacak": grandTotalKontak,
       "Kontak Diberi Profilaksis (Eritromisin)": grandTotalProf,
       "Cakupan Profilaksis Kontak": grandProfPct,
@@ -286,16 +313,24 @@ window.SIDIF_EXPORT = {
       { "Indikator Rekapitulasi": "Case Fatality Rate (CFR)", "Nilai": totalK > 0 ? ((dth / totalK) * 100).toFixed(1) + "%" : "0.0%" },
       { "Indikator Rekapitulasi": "Kasus Diberi Terapi ADS", "Nilai": ads },
       { "Indikator Rekapitulasi": "Cakupan Terapi ADS", "Nilai": totalK > 0 ? ((ads / totalK) * 100).toFixed(1) + "%" : "0.0%" },
+      { "Indikator Rekapitulasi": "Imunisasi Lengkap", "Nilai": cases.filter(c => ((c.statusImunisasi || "").toLowerCase().includes("lengkap") && !(c.statusImunisasi || "").toLowerCase().includes("belum")) || c.totalDosis >= 4).length },
+      { "Indikator Rekapitulasi": "Imunisasi Belum Lengkap", "Nilai": cases.filter(c => (c.statusImunisasi || "").toLowerCase().includes("belum") || (c.totalDosis > 0 && c.totalDosis < 4)).length },
+      { "Indikator Rekapitulasi": "Tidak Diimunisasi / 0 Dosis", "Nilai": cases.filter(c => (c.statusImunisasi || "").toLowerCase().includes("tidak") || c.totalDosis === 0).length },
       { "Indikator Rekapitulasi": "Jumlah Kontak Erat Terdata", "Nilai": totKontak },
       { "Indikator Rekapitulasi": "Kontak Erat Diberi Profilaksis", "Nilai": totProf },
       { "Indikator Rekapitulasi": "Cakupan Kemoprofilaksis Kontak", "Nilai": totKontak > 0 ? ((totProf / totKontak) * 100).toFixed(1) + "%" : "0.0%" }
     ];
 
-    // Sheet 2: Daftar Kasus 53 Kolom Lengkap
+    // Sheet 2: Daftar Kasus Lengkap Sesuai DIF-1 Resmi
     const caseRows = cases.map((c, idx) => ({
       "No": idx + 1,
       "Nomor Epidemiologi": c.noEpid || "-",
+      "Status Dokumen": (c.statusAdmin === "VOID" || c.isVoid) ? "VOID (Dibatalkan)" : "Aktif",
       "Nama Lengkap Pasien": c.nama || "-",
+      "Pekerjaan": c.pekerjaan || "-",
+      "No. Telepon / WA": c.telepon || "-",
+      "Tinggi Badan (cm)": (c.tinggiBadan !== undefined && c.tinggiBadan !== null) ? c.tinggiBadan : "-",
+      "Berat Badan (kg)": (c.beratBadan !== undefined && c.beratBadan !== null) ? c.beratBadan : "-",
       "Umur (Tahun)": c.umurTahun !== undefined ? c.umurTahun : "-",
       "Umur (Bulan)": c.umurBulan !== undefined ? c.umurBulan : "-",
       "Jenis Kelamin (L/P)": c.jenisKelamin || "-",
@@ -308,21 +343,23 @@ window.SIDIF_EXPORT = {
       "Nyeri Telan": c.nyeriMenelan ? "Ya" : "Tidak",
       "Bullneck": c.bullneck ? "Ya" : "Tidak",
       "Pseudomembran": c.pseudomembran ? "Ya" : "Tidak",
-      "DPT Dosis": c.dpt || "0",
-      "DT Dosis": c.dt || "0",
-      "Td Dosis": c.td || "0",
+      "Gejala Lainnya": c.gejalaLain || "-",
+      "Riwayat DPT": c.dpt || "0",
+      "Riwayat DT": c.dt || "0",
+      "Riwayat Td": c.td || "0",
       "Total Dosis Imunisasi": c.totalDosis !== undefined ? c.totalDosis : 0,
-      "Hasil Kultur Lab": c.hasilKultur || "Pending",
-      "Uji Toksigenitas": c.toksigenitas || "-",
-      "Hubungan Epidemiologi": c.hubunganEpidemiologi ? "Ya" : "Tidak",
+      "Status Imunisasi Kemenkes": c.statusImunisasi || "-",
+      "Hasil Kultur Lab": (c.hasilKultur === "Positif" || c.hasilKulturHidung === "Positif" || c.hasilKulturTenggorok === "Positif") ? "Positif" : ((c.hasilKultur === "Negatif" || (c.hasilKulturHidung === "Negatif" && c.hasilKulturTenggorok === "Negatif")) ? "Negatif" : "Pending"),
       "Klasifikasi Difteri": c.klasifikasiKlinis || "Suspek",
-      "Antibiotik": c.antibiotik || "Tidak",
       "Pemberian ADS": c.adsDiberikan ? "Ya" : "Tidak",
       "Dosis ADS (IU)": c.adsDosis || 0,
+      "Pemberian Antibiotik": c.antibiotik || "Tidak",
+      "Obat Lainnya": c.obatLain || "-",
       "Keadaan Akhir": c.keadaanAkhir || "Hidup / Sembuh",
-      "Kontak Serumah": c.kontakRumah || c.kontakEratRumah || 0,
-      "Profilaksis Serumah": c.profilaksisRumah || c.kontakEratProfilaksis || 0,
-      "Total Kontak Erat": (parseInt(c.kontakRumah||0,10) + parseInt(c.kontakSekolah||0,10) + parseInt(c.kontakTetangga||0,10) + parseInt(c.kontakBermain||0,10))
+      "Riwayat Kontak Difteri 14 Hari": c.pernahKontakDifteri || "Tidak",
+      "Riwayat Bepergian Daerah KLB": c.pernahBepergianKlb || "Tidak",
+      "Total Kontak Erat": (parseInt(c.kontakRumah || 0, 10) + parseInt(c.kontakSekolah || 0, 10) + parseInt(c.kontakTetangga || 0, 10) + parseInt(c.kontakBermain || 0, 10)),
+      "Total Kontak Profilaksis": (parseInt(c.profilaksisRumah || 0, 10) + parseInt(c.profilaksisSekolah || 0, 10) + parseInt(c.profilaksisTetangga || 0, 10) + parseInt(c.profilaksisBermain || 0, 10))
     }));
 
     const wb = XLSX.utils.book_new();
@@ -380,10 +417,20 @@ window.SIDIF_EXPORT = {
     }
 
     const rows = cases.map((c, idx) => {
+      const isPos = (c.hasilKultur === "Positif" || c.hasilKulturHidung === "Positif" || c.hasilKulturTenggorok === "Positif");
+      const isNeg = (c.hasilKultur === "Negatif" || (c.hasilKulturHidung === "Negatif" && c.hasilKulturTenggorok === "Negatif"));
+      const totK = parseInt(c.kontakRumah || c.kontakEratRumah || 0, 10) + parseInt(c.kontakSekolah || 0, 10) + parseInt(c.kontakTetangga || 0, 10) + parseInt(c.kontakBermain || 0, 10);
+      const totP = parseInt(c.profilaksisRumah || c.kontakEratProfilaksis || 0, 10) + parseInt(c.profilaksisSekolah || 0, 10) + parseInt(c.profilaksisTetangga || 0, 10) + parseInt(c.profilaksisBermain || 0, 10);
+
       return {
         "No": idx + 1,
         "Nomor Epidemiologi": c.noEpid || "-",
+        "Status Dokumen": (c.statusAdmin === "VOID" || c.isVoid) ? "VOID (Dibatalkan)" : "Aktif",
         "Nama Lengkap Pasien": c.nama || "-",
+        "Pekerjaan": c.pekerjaan || "-",
+        "No. Telepon / WA": c.telepon || "-",
+        "Tinggi Badan (cm)": (c.tinggiBadan !== undefined && c.tinggiBadan !== null) ? c.tinggiBadan : "-",
+        "Berat Badan (kg)": (c.beratBadan !== undefined && c.beratBadan !== null) ? c.beratBadan : "-",
         "Umur (Tahun)": c.umurTahun !== undefined ? c.umurTahun : "-",
         "Umur (Bulan)": c.umurBulan !== undefined ? c.umurBulan : "-",
         "Jenis Kelamin (L/P)": c.jenisKelamin || "-",
@@ -396,10 +443,12 @@ window.SIDIF_EXPORT = {
         "Gejala: Nyeri Telan": c.nyeriMenelan ? "Ya" : "Tidak",
         "Gejala: Leher Bengkak / Bullneck": c.bullneck ? "Ya" : "Tidak",
         "Gejala: Pseudomembran": c.pseudomembran ? "Ya" : "Tidak",
+        "Gejala Lainnya": c.gejalaLain || "-",
         "Riwayat DPT (Usia 2,3,4, 18 Bln)": c.dpt || "0",
         "Riwayat DT (Kelas 1 SD/MI)": c.dt || "0",
         "Riwayat Td (Kelas 2 & 5 SD/MI)": c.td || "0",
         "Jumlah Dosis Vaksin Difteri (Otomatis)": c.totalDosis !== undefined ? c.totalDosis : 0,
+        "Status Imunisasi Kemenkes": c.statusImunisasi || "-",
         "Tanggal Terakhir Vaksinasi": c.tanggalTerakhirVaksinasi || "-",
         "Sumber Informasi Imunisasi": c.sumberImunisasi || "-",
         "Sumber Laporan": c.sumberLaporan || "-",
@@ -411,24 +460,30 @@ window.SIDIF_EXPORT = {
         "Spesimen: Tanggal Kirim Tenggorok": c.tanggalKirimTenggorok || "-",
         "Hasil Kultur Hidung": c.hasilKulturHidung || c.hasilKultur || "Pending",
         "Hasil Kultur Tenggorok": c.hasilKulturTenggorok || c.hasilKultur || "Pending",
+        "Status Konfirmasi Lab": isPos ? "Positif" : (isNeg ? "Negatif" : "Pending"),
         "Varian C. diphtheriae": c.varian || "-",
         "Uji Toksigenitas": c.toksigenitas || "-",
         "Ada Hubungan Epidemiologi": c.hubunganEpidemiologi ? "Ya" : "Tidak",
         "Klasifikasi Difteri (Otomatis)": c.klasifikasiKlinis || "Suspek",
         "Pemberian Antibiotik": c.antibiotik || "Tidak",
         "Tanggal Pemberian Antibiotik": c.tanggalAntibiotik || "-",
+        "Obat Lainnya": c.obatLain || "-",
         "Pemberian ADS": c.adsDiberikan ? "Ya" : "Tidak",
         "Tanggal Pemberian ADS": c.tanggalADS || "-",
         "Dosis Pemberian ADS (IU)": c.adsDosis || 0,
         "Keadaan Akhir": c.keadaanAkhir || "Hidup / Sembuh",
+        "Riwayat Kontak Kasus 14 Hari": c.pernahKontakDifteri || "Tidak",
+        "Riwayat Bepergian Daerah KLB": c.pernahBepergianKlb || "Tidak",
         "Jumlah Kontak Rumah (KR)": c.kontakRumah || c.kontakEratRumah || 0,
         "Jumlah Kontak Sekolah/Kerja (KS)": c.kontakSekolah || 0,
         "Jumlah Kontak Tetangga (KT)": c.kontakTetangga || 0,
         "Jumlah Kontak Bermain (KB)": c.kontakBermain || 0,
+        "Total Kontak Erat Terlacak": totK,
         "Profilaksis: Kontak Rumah": c.profilaksisRumah || c.kontakEratProfilaksis || 0,
         "Profilaksis: Kontak Sekolah": c.profilaksisSekolah || 0,
         "Profilaksis: Kontak Tetangga": c.profilaksisTetangga || 0,
         "Profilaksis: Kontak Bermain": c.profilaksisBermain || 0,
+        "Total Kontak Diberi Profilaksis": totP,
         "Keterangan Lain": c.keterangan || "-",
         "Timeliness Investigation (<24 Jam)": c.timelinessPE || "< 24 Jam",
         "Timeliness Specimen Collection (<48 Jam)": c.timelinessSpecimen || "< 48 Jam",

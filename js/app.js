@@ -29,11 +29,11 @@ window.SIDIF_APP = {
   // Terapkan Pengaturan Identitas Situs
   applySettings() {
     const settings = window.SIDIF_STORE.getSettings();
-    const siteName = settings.appName || "E-SIDIF";
-    const subTitle = settings.welcomeText || "ELEKTRONIK SISTEM INFORMASI DIFTERI";
+    const siteName = "E-SIDIF";
+    const subTitle = "ELEKTRONIK SIMULASI DIFTERI";
     document.querySelectorAll(".site-name-display").forEach(el => el.innerText = siteName);
     document.querySelectorAll(".site-subtitle-display").forEach(el => el.innerText = subTitle);
-    document.title = `${siteName} — Elektronik Sistem Informasi Difteri Jawa Timur`;
+    document.title = `${siteName} — Elektronik Simulasi Difteri Jawa Timur`;
   },
 
   // Navigasi Tampilan Antarmuka
@@ -269,15 +269,15 @@ window.SIDIF_APP = {
 
     // Kalkulasi Angka KPI Utama (Slide 4, 7, 8)
     const totalKasus = filteredCases.length;
-    const konfirmasi = filteredCases.filter(c => c.hasilKultur === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
-    const klinis = filteredCases.filter(c => c.klasifikasiKlinis === "Kompatibel Klinis" || c.klasifikasiKlinis === "Difteri Kompatibel Klinis").length;
+    const konfirmasi = filteredCases.filter(c => c.hasilKultur === "Positif" || c.hasilKulturHidung === "Positif" || c.hasilKulturTenggorok === "Positif" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab" || c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Hubungan Epidemiologi").length;
     const meninggal = filteredCases.filter(c => c.keadaanAkhir === "Meninggal Dunia").length;
     const cfr = totalKasus > 0 ? ((meninggal / totalKasus) * 100).toFixed(1) : "0.0";
     const adsCount = filteredCases.filter(c => c.adsDiberikan).length;
     const adsPct = totalKasus > 0 ? ((adsCount / totalKasus) * 100).toFixed(1) : "0.0";
 
-    // Hitung Positivity Rate: Positif Lab dibagi Kasus yang Diperiksa Spesimen Lab
-    const labExaminedCases = filteredCases.filter(c => c.hasilKultur === "Positif" || c.hasilKultur === "Negatif" || (c.statusLab && c.statusLab !== "-") || (c.tanggalAmbilHidung && c.tanggalAmbilHidung !== "-") || (c.tanggalAmbilTenggorok && c.tanggalAmbilTenggorok !== "-"));
+    // Hitung Positivity Rate: Positif Lab dibagi Hanya Kasus yang Diperiksa Spesimen Lab
+    // Yang tidak diperiksa lab TIDAK menjadi penyebut (masuk ke klasifikasi Kompatibel Klinis)
+    const labExaminedCases = filteredCases.filter(c => c.hasilKultur === "Positif" || c.hasilKultur === "Negatif" || c.hasilKulturHidung === "Positif" || c.hasilKulturHidung === "Negatif" || c.hasilKulturTenggorok === "Positif" || c.hasilKulturTenggorok === "Negatif" || (c.statusLab && c.statusLab !== "-") || (c.tanggalAmbilHidung && c.tanggalAmbilHidung !== "-") || (c.tanggalAmbilTenggorok && c.tanggalAmbilTenggorok !== "-"));
     const totalLabExamined = Math.max(labExaminedCases.length, konfirmasi);
     const pr = totalLabExamined > 0 ? ((konfirmasi / totalLabExamined) * 100).toFixed(1) : "0.0";
 
@@ -302,7 +302,7 @@ window.SIDIF_APP = {
 
     const fmtKpi = (n) => (n || 0).toLocaleString("id-ID");
     if (kpiTotalEl) kpiTotalEl.innerHTML = `${fmtKpi(totalKasus)} <span class="text-xs font-normal text-slate-500">Kasus</span>`;
-    if (kpiSubEl) kpiSubEl.innerText = `Lab: ${fmtKpi(konfirmasi)} | Klinis: ${fmtKpi(klinis)}`;
+    if (kpiSubEl) kpiSubEl.innerText = `Positif: ${fmtKpi(konfirmasi)} Kasus`;
     if (kpiPrEl) kpiPrEl.innerText = `${pr}%`;
     if (kpiSubPrEl) kpiSubPrEl.innerText = `${fmtKpi(konfirmasi)} Positif dari ${fmtKpi(totalLabExamined)} Diperiksa Lab`;
     if (kpiCfrEl) kpiCfrEl.innerText = `${cfr}%`;
@@ -312,7 +312,7 @@ window.SIDIF_APP = {
     if (kpiKontakEl) kpiKontakEl.innerText = `${fmtKpi(kr)} Orang`;
     if (kpiSubKontakEl) kpiSubKontakEl.innerText = `${fmtKpi(profKr)} Diberi Profilaksis`;
 
-    // Render Ulang Seluruh Grafik (Kurva M1-M43, Usia, Imunisasi, Gender, Kontak)
+    // Render Ulang Seluruh Grafik (Kurva M1-M43, Usia, Imunisasi, Gender, Kontak, ADS, CFR, Faskes, PE)
     if (window.SIDIF_CHARTS) {
       window.SIDIF_CHARTS.renderAllCharts(filteredCases);
     }
@@ -322,6 +322,18 @@ window.SIDIF_APP = {
       window.SIDIF_MAP.applyFilter(selectedYear, selectedMonth);
       window.SIDIF_MAP.focusRegion(selectedRegion);
     }
+  },
+
+  // Kembalikan Tampilan Peta dan Dashboard ke Seluruh Jawa Timur (Provinsi)
+  resetToProvinceMap() {
+    const regionSelectEl = document.getElementById("dashboard-region-select");
+    if (regionSelectEl) {
+      regionSelectEl.value = "Jawa Timur";
+    }
+    if (window.SIDIF_MAP) {
+      window.SIDIF_MAP.focusRegion("Jawa Timur");
+    }
+    this.applyDashboardFilters();
   },
 
   // Dipanggil saat pengguna mengklik wilayah poligon pada Peta 2D
@@ -538,6 +550,55 @@ window.SIDIF_APP = {
     }
   },
 
+  // Kontrol Dropdown Sumber Laporan Faskes (Puskesmas / RS / Klinik / Dinkes / Lainnya)
+  handleSumberLaporanChange(val) {
+    const wrap = document.getElementById("wrapper-sumber-lainnya");
+    const manualInput = document.getElementById("form-sumber-lainnya-text");
+    const targetLocked = document.getElementById("form-sumber-laporan");
+    if (val === "Lainnya") {
+      if (wrap) wrap.classList.remove("hidden");
+      if (manualInput) {
+        manualInput.focus();
+        if (targetLocked) targetLocked.value = manualInput.value || "Lainnya";
+      }
+    } else {
+      if (wrap) wrap.classList.add("hidden");
+      if (manualInput) manualInput.value = "";
+      if (targetLocked) targetLocked.value = val;
+    }
+  },
+
+  // Sinkronkan Teks Sumber Laporan Lainnya ke Input Terkunci Bagian II
+  syncSumberLaporan() {
+    const manualInput = document.getElementById("form-sumber-lainnya-text");
+    const targetLocked = document.getElementById("form-sumber-laporan");
+    if (targetLocked && manualInput) {
+      targetLocked.value = manualInput.value.trim() || "Lainnya";
+    }
+  },
+
+  // Toggle Riwayat Kontak Kasus 14 Hari Sebelum Sakit (Bagian VII)
+  togglePernahKontakDetail(val) {
+    const wrap = document.getElementById("wrapper-pernah-kontak-detail");
+    if (!wrap) return;
+    if (val === "Ya") {
+      wrap.classList.remove("hidden");
+    } else {
+      wrap.classList.add("hidden");
+    }
+  },
+
+  // Toggle Riwayat Bepergian ke Daerah KLB 14 Hari Sebelum Sakit (Bagian VII)
+  toggleBepergianDetail(val) {
+    const wrap = document.getElementById("wrapper-bepergian-detail");
+    if (!wrap) return;
+    if (val === "Ya") {
+      wrap.classList.remove("hidden");
+    } else {
+      wrap.classList.add("hidden");
+    }
+  },
+
   // Manajemen Baris Kontak Erat Dinamis (Form DIF-1 Halaman 3)
   addContactRow(contact = null) {
     const tbody = document.getElementById("contacts-entry-table-body");
@@ -661,7 +722,48 @@ window.SIDIF_APP = {
     if (document.getElementById("form-tgl-terima-laporan")) document.getElementById("form-tgl-terima-laporan").value = c.tanggalLaporanDiterima || "";
     if (document.getElementById("form-tgl-pe")) document.getElementById("form-tgl-pe").value = c.tanggalPelacakan || "";
 
+    // Sinkronisasi Sumber Laporan Bagian I & II
+    const pelaporSumberEl = document.getElementById("form-pelapor-sumber");
+    const sumberManualWrapper = document.getElementById("wrapper-sumber-lainnya");
+    const sumberManualText = document.getElementById("form-sumber-lainnya-text");
+    const sumberLaporanLocked = document.getElementById("form-sumber-laporan");
+    const sLaporan = c.sumberLaporan || c.pelaporKantor || "Puskesmas";
+    if (pelaporSumberEl) {
+      const standardSources = ["Puskesmas", "Rumah Sakit", "Klinik swasta", "Dinas Kesehatan"];
+      if (standardSources.includes(sLaporan)) {
+        pelaporSumberEl.value = sLaporan;
+        if (sumberManualWrapper) sumberManualWrapper.classList.add("hidden");
+        if (sumberManualText) sumberManualText.value = "";
+      } else {
+        pelaporSumberEl.value = "Lainnya";
+        if (sumberManualWrapper) sumberManualWrapper.classList.remove("hidden");
+        if (sumberManualText) sumberManualText.value = sLaporan;
+      }
+    }
+    if (sumberLaporanLocked) sumberLaporanLocked.value = sLaporan;
+
     document.getElementById("form-case-id").value = c.id;
+
+    // Cek Status VOID Dokumen
+    const bannerVoid = document.getElementById("banner-case-void");
+    const voidBadge = document.getElementById("void-no-epid-badge");
+    const btnVoid = document.getElementById("btn-void-case");
+    const btnSubmit = document.getElementById("btn-submit-case");
+    const submitLabel = document.getElementById("btn-submit-label");
+
+    const isVoid = c.statusAdmin === "VOID" || c.isVoid;
+    if (isVoid) {
+      if (bannerVoid) bannerVoid.classList.remove("hidden");
+      if (voidBadge) voidBadge.innerText = c.noEpid || "";
+      if (btnVoid) btnVoid.classList.add("hidden");
+      if (btnSubmit) btnSubmit.classList.add("hidden");
+    } else {
+      if (bannerVoid) bannerVoid.classList.add("hidden");
+      if (btnVoid) btnVoid.classList.remove("hidden");
+      if (btnSubmit) btnSubmit.classList.remove("hidden");
+      if (submitLabel) submitLabel.innerText = "SIMPAN PERUBAHAN DOKUMEN";
+    }
+
     // No. EPID: Cukup tampilkan angka tanpa 'D-' karena prefix D- sudah ada di badge
     const cleanNoEpid = (c.noEpid || "").replace(/^D\s*-\s*/i, "");
     if (document.getElementById("form-no-epid")) document.getElementById("form-no-epid").value = cleanNoEpid;
@@ -682,11 +784,18 @@ window.SIDIF_APP = {
     this.populateKelurahanDropdown(c.kecamatan);
     if (document.getElementById("form-kelurahan")) document.getElementById("form-kelurahan").value = c.kelurahan || "";
 
+    // Field Baru Bagian II: Pekerjaan, Telepon, TB, BB
+    if (document.getElementById("form-pekerjaan")) document.getElementById("form-pekerjaan").value = c.pekerjaan || "Belum Bekerja / Balita";
+    if (document.getElementById("form-telepon")) document.getElementById("form-telepon").value = c.telepon || "";
+    if (document.getElementById("form-tb")) document.getElementById("form-tb").value = (c.tinggiBadan !== undefined && c.tinggiBadan !== null) ? c.tinggiBadan : "";
+    if (document.getElementById("form-bb")) document.getElementById("form-bb").value = (c.beratBadan !== undefined && c.beratBadan !== null) ? c.beratBadan : "";
+
     // Gejala
     if (document.getElementById("form-demam")) document.getElementById("form-demam").checked = !!c.demam;
     if (document.getElementById("form-nyeri")) document.getElementById("form-nyeri").checked = !!c.nyeriMenelan;
     if (document.getElementById("form-bullneck")) document.getElementById("form-bullneck").checked = !!c.bullneck;
     if (document.getElementById("form-pseudo")) document.getElementById("form-pseudo").checked = !!c.pseudomembran;
+    if (document.getElementById("form-gejala-lain")) document.getElementById("form-gejala-lain").value = c.gejalaLain || "";
 
     // Imunisasi
     if (document.getElementById("form-dpt")) document.getElementById("form-dpt").value = c.dpt || "0";
@@ -720,6 +829,7 @@ window.SIDIF_APP = {
       }
     }
     if (document.getElementById("form-tgl-antibiotik")) document.getElementById("form-tgl-antibiotik").value = c.tanggalAntibiotik !== "-" ? (c.tanggalAntibiotik || "") : "";
+    if (document.getElementById("form-obat-lain")) document.getElementById("form-obat-lain").value = c.obatLain || "";
     if (document.getElementById("form-keadaan")) document.getElementById("form-keadaan").value = c.keadaanAkhir || "Hidup / Sembuh";
     if (document.getElementById("form-tgl-sembuh")) document.getElementById("form-tgl-sembuh").value = c.tanggalSembuh || "";
     if (document.getElementById("form-tgl-meninggal")) document.getElementById("form-tgl-meninggal").value = c.tanggalMeninggal || "";
@@ -728,6 +838,24 @@ window.SIDIF_APP = {
     if (document.getElementById("form-ads")) document.getElementById("form-ads").checked = !!c.adsDiberikan;
     if (document.getElementById("form-tgl-ads")) document.getElementById("form-tgl-ads").value = c.tanggalADS !== "-" ? (c.tanggalADS || "") : "";
     if (document.getElementById("form-ads-dosis")) document.getElementById("form-ads-dosis").value = c.adsDosis || "";
+
+    // Bagian VII: Riwayat Kontak & Bepergian 14 Hari Sebelum Sakit
+    const kontakPernah = c.pernahKontakDifteri || "Tidak";
+    if (document.getElementById("form-pernah-kontak-difteri")) {
+      document.getElementById("form-pernah-kontak-difteri").value = kontakPernah;
+      this.togglePernahKontakDetail(kontakPernah);
+    }
+    if (document.getElementById("form-kontak-kasus-nama")) document.getElementById("form-kontak-kasus-nama").value = c.kontakKasusNama || "";
+    if (document.getElementById("form-kontak-kasus-hubungan")) document.getElementById("form-kontak-kasus-hubungan").value = c.kontakKasusHubungan || "";
+    if (document.getElementById("form-kontak-kasus-tgl")) document.getElementById("form-kontak-kasus-tgl").value = c.kontakKasusTgl || "";
+
+    const bepergianPernah = c.pernahBepergianKlb || "Tidak";
+    if (document.getElementById("form-pernah-bepergian-klb")) {
+      document.getElementById("form-pernah-bepergian-klb").value = bepergianPernah;
+      this.toggleBepergianDetail(bepergianPernah);
+    }
+    if (document.getElementById("form-travel-daerah")) document.getElementById("form-travel-daerah").value = c.travelDaerah || "";
+    if (document.getElementById("form-travel-tgl")) document.getElementById("form-travel-tgl").value = c.travelTgl || "";
 
     // Kontak
     if (document.getElementById("form-kontak-rumah")) document.getElementById("form-kontak-rumah").value = c.kontakRumah || c.kontakEratRumah || "";
@@ -765,6 +893,27 @@ window.SIDIF_APP = {
     if (form) form.reset();
 
     if (document.getElementById("form-case-id")) document.getElementById("form-case-id").value = "";
+
+    // Reset Banner VOID dan Tombol Aksi
+    const bannerVoid = document.getElementById("banner-case-void");
+    const btnVoid = document.getElementById("btn-void-case");
+    const btnSubmit = document.getElementById("btn-submit-case");
+    const submitLabel = document.getElementById("btn-submit-label");
+    if (bannerVoid) bannerVoid.classList.add("hidden");
+    if (btnVoid) btnVoid.classList.add("hidden");
+    if (btnSubmit) btnSubmit.classList.remove("hidden");
+    if (submitLabel) submitLabel.innerText = "SIMPAN & AJUKAN KASUS (DIF-1)";
+
+    // Reset Sumber Laporan
+    const pelaporSumberEl = document.getElementById("form-pelapor-sumber");
+    const sumberManualWrapper = document.getElementById("wrapper-sumber-lainnya");
+    const sumberManualText = document.getElementById("form-sumber-lainnya-text");
+    const sumberLaporanLocked = document.getElementById("form-sumber-laporan");
+    if (pelaporSumberEl) pelaporSumberEl.value = "Puskesmas";
+    if (sumberManualWrapper) sumberManualWrapper.classList.add("hidden");
+    if (sumberManualText) sumberManualText.value = "";
+    if (sumberLaporanLocked) sumberLaporanLocked.value = "Puskesmas";
+
     const userCurr = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     if (userCurr && userCurr.region !== "Provinsi Jawa Timur") {
       const regInput = document.getElementById("form-kabupaten");
@@ -780,13 +929,27 @@ window.SIDIF_APP = {
     }
 
     // Bersihkan Isian Pasien
-    ["form-nik", "form-nama", "form-nama-ibu", "form-telepon", "form-alamat", "form-rt-rw", "form-kelurahan"].forEach(id => {
+    ["form-nik", "form-nama", "form-nama-ibu", "form-telepon", "form-alamat", "form-rt-rw", "form-kelurahan",
+     "form-tb", "form-bb", "form-gejala-lain", "form-obat-lain", "form-sumber-lainnya-text",
+     "form-kontak-kasus-nama", "form-kontak-kasus-hubungan", "form-kontak-kasus-tgl",
+     "form-travel-daerah", "form-travel-tgl"].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    if (document.getElementById("form-pekerjaan")) document.getElementById("form-pekerjaan").value = "Belum Bekerja / Balita";
     if (document.getElementById("form-no-nik-chk")) {
       document.getElementById("form-no-nik-chk").checked = false;
       if (document.getElementById("form-nik")) document.getElementById("form-nik").disabled = false;
+    }
+
+    // Reset Riwayat Kontak & Travel Bagian VII
+    if (document.getElementById("form-pernah-kontak-difteri")) {
+      document.getElementById("form-pernah-kontak-difteri").value = "Tidak";
+      this.togglePernahKontakDetail("Tidak");
+    }
+    if (document.getElementById("form-pernah-bepergian-klb")) {
+      document.getElementById("form-pernah-bepergian-klb").value = "Tidak";
+      this.toggleBepergianDetail("Tidak");
     }
 
     // Bersihkan Tanggal-Tanggal
@@ -1037,25 +1200,38 @@ window.SIDIF_APP = {
       tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400 font-medium">Tidak ada data kasus yang cocok dengan kriteria filter.</td></tr>`;
     } else {
       tbody.innerHTML = pagedCases.map(c => {
-        const isKonf = c.klasifikasiKlinis === "Konfirmasi Lab";
+        const isVoid = c.statusAdmin === "VOID" || c.isVoid;
+        const isKonf = c.klasifikasiKlinis === "Konfirmasi Lab" || c.klasifikasiKlinis === "Difteri Konfirmasi Lab";
         const isDead = c.keadaanAkhir === "Meninggal Dunia";
-        const badgeKlas = isKonf 
+
+        let badgeKlas = isKonf 
           ? `<span class="px-2 py-0.5 bg-red-100 text-red-800 font-bold text-[10px] rounded uppercase">Konfirmasi Lab</span>`
           : `<span class="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold text-[10px] rounded uppercase">Klinis</span>`;
+        if (isVoid) {
+          badgeKlas = `<span class="px-2 py-0.5 bg-red-200 text-red-900 font-black text-[10px] rounded uppercase">DIBATALKAN (VOID)</span>`;
+        }
 
-        const badgeKeadaan = isDead
-          ? `<span class="text-red-600 font-bold">Meninggal</span>`
-          : `<span class="text-emerald-700 font-medium">Hidup / Sembuh</span>`;
+        const badgeKeadaan = isVoid
+          ? `<span class="text-slate-400 font-semibold italic text-[11px]">Dokumen Batal</span>`
+          : (isDead
+            ? `<span class="text-red-600 font-bold">Meninggal</span>`
+            : `<span class="text-emerald-700 font-medium">Hidup / Sembuh</span>`);
 
         const jkDisplay = c.jenisKelamin === "L" 
           ? `<span class="text-blue-600 font-bold">L</span>` 
           : `<span class="text-pink-600 font-bold">P</span>`;
 
+        const noEpidDisplay = isVoid
+          ? `<span class="line-through text-red-600 font-bold">${c.noEpid || "-"}</span> <span class="px-1.5 py-0.5 bg-red-600 text-white font-black text-[9px] rounded uppercase ml-1">VOID</span>`
+          : `<span class="font-mono font-bold text-slate-800">${c.noEpid || "-"}</span>`;
+
+        const rowBg = isVoid ? "bg-red-50/40 hover:bg-red-50/70" : "hover:bg-slate-50";
+
         return `
-          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-            <td class="p-3 font-mono font-bold text-slate-800">${c.noEpid || "-"}</td>
+          <tr class="${rowBg} transition border-b border-slate-100">
+            <td class="p-3">${noEpidDisplay}</td>
             <td class="p-3">
-              <span class="font-bold text-slate-900 block">${c.nama}</span>
+              <span class="font-bold ${isVoid ? 'text-slate-500 line-through' : 'text-slate-900'} block">${c.nama}</span>
               <span class="text-[10px] text-slate-400 font-mono">${c.hasNoNik ? "Belum Ada NIK" : (c.nik || "-")}</span>
             </td>
             <td class="p-3 text-slate-600">
@@ -1070,9 +1246,9 @@ window.SIDIF_APP = {
             <td class="p-3">${badgeKeadaan}</td>
             <td class="p-3 text-center">
               <div class="flex items-center justify-center gap-1.5">
-                <button type="button" onclick="window.SIDIF_APP.editCase('${c.id}')" class="px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-300 text-[11px] font-bold rounded shadow-2xs flex items-center gap-1 cursor-pointer" title="Edit dan perbarui hasil lab">
+                <button type="button" onclick="window.SIDIF_APP.editCase('${c.id}')" class="px-2.5 py-1.5 ${isVoid ? 'bg-slate-100 text-slate-600 border border-slate-300' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-300'} text-[11px] font-bold rounded shadow-2xs flex items-center gap-1 cursor-pointer" title="${isVoid ? 'Lihat dokumen yang dibatalkan' : 'Edit dan perbarui hasil lab'}">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                  <span>Edit / Update Lab</span>
+                  <span>${isVoid ? 'Lihat VOID' : 'Edit / Update Lab'}</span>
                 </button>
                 <button type="button" onclick="window.SIDIF_EXPORT.viewFormPe('${c.id}')" class="px-2.5 py-1.5 bg-[#0F7A4F] hover:bg-[#15803D] text-white text-[11px] font-bold rounded shadow-2xs flex items-center gap-1 cursor-pointer" title="Cetak formulir baku DIF-1">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -1145,9 +1321,9 @@ window.SIDIF_APP = {
 
     // 2. Validasi No. EPID (Identitas Utama Baku Kemenkes: Wajib Format Angka D-xxxxxxxx)
     let rawNoEpid = document.getElementById("form-no-epid") ? document.getElementById("form-no-epid").value.trim() : "";
-    rawNoEpid = rawNoEpid.replace(/^D\s*-\s*/i, "").replace(/[^0-9]/g, "");
+    rawNoEpid = rawNoEpid.replace(/^D\s*-\s*/i, "");
     if (!rawNoEpid) {
-      rawNoEpid = window.SIDIF_FORMS.generateNoEpid(user.region).replace(/^D\s*-\s*/i, "");
+      rawNoEpid = window.SIDIF_FORMS.generateNoEpid(user.region, null, null, "digits");
     }
     const noEpidVal = "D-" + rawNoEpid;
 
@@ -1200,6 +1376,33 @@ window.SIDIF_APP = {
       alert("Desa / Kelurahan wajib dipilih atau dituliskan.");
       return;
     }
+
+    // Sumber Laporan Faskes
+    let sumberLaporanVal = document.getElementById("form-pelapor-sumber") ? document.getElementById("form-pelapor-sumber").value : "Puskesmas";
+    if (sumberLaporanVal === "Lainnya") {
+      const customTxt = document.getElementById("form-sumber-lainnya-text") ? document.getElementById("form-sumber-lainnya-text").value.trim() : "";
+      sumberLaporanVal = customTxt || "Lainnya";
+    }
+
+    // Field Tambahan Bagian II Sesuai DIF-1 Resmi
+    const pekerjaanVal = document.getElementById("form-pekerjaan") ? document.getElementById("form-pekerjaan").value : "Belum Bekerja / Balita";
+    const teleponVal = document.getElementById("form-telepon") ? document.getElementById("form-telepon").value.trim() : "";
+    const tbVal = document.getElementById("form-tb") && document.getElementById("form-tb").value ? parseFloat(document.getElementById("form-tb").value) : null;
+    const bbVal = document.getElementById("form-bb") && document.getElementById("form-bb").value ? parseFloat(document.getElementById("form-bb").value) : null;
+
+    // Gejala Lain & Obat Lain
+    const gejalaLainVal = document.getElementById("form-gejala-lain") ? document.getElementById("form-gejala-lain").value.trim() : "";
+    const obatLainVal = document.getElementById("form-obat-lain") ? document.getElementById("form-obat-lain").value.trim() : "";
+
+    // Bagian VII: Riwayat Kontak & Bepergian 14 Hari Sebelum Sakit
+    const pernahKontakVal = document.getElementById("form-pernah-kontak-difteri") ? document.getElementById("form-pernah-kontak-difteri").value : "Tidak";
+    const kontakKasusNamaVal = document.getElementById("form-kontak-kasus-nama") ? document.getElementById("form-kontak-kasus-nama").value.trim() : "";
+    const kontakKasusHubunganVal = document.getElementById("form-kontak-kasus-hubungan") ? document.getElementById("form-kontak-kasus-hubungan").value.trim() : "";
+    const kontakKasusTglVal = document.getElementById("form-kontak-kasus-tgl") ? document.getElementById("form-kontak-kasus-tgl").value : "";
+
+    const pernahBepergianVal = document.getElementById("form-pernah-bepergian-klb") ? document.getElementById("form-pernah-bepergian-klb").value : "Tidak";
+    const travelDaerahVal = document.getElementById("form-travel-daerah") ? document.getElementById("form-travel-daerah").value.trim() : "";
+    const travelTglVal = document.getElementById("form-travel-tgl") ? document.getElementById("form-travel-tgl").value : "";
 
     const genderVal = document.getElementById("gender-radio-male").checked ? "L" : "P";
     const dptVal = document.getElementById("form-dpt").value;
@@ -1298,20 +1501,35 @@ window.SIDIF_APP = {
       hubunganEpidemiologi: kontakEpiVal
     });
 
-    // Kumpulkan Daftar Nama Kontak Erat Dinamis (Bagian VII)
-    const kontakList = [];
+    // Kumpulkan & Validasi Kontak Erat Dinamis (Bagian VIII - WAJIB DIISI)
     const contactRows = document.querySelectorAll("#contacts-entry-table-body tr.contact-data-row");
-    contactRows.forEach(tr => {
+    if (!contactRows || contactRows.length === 0) {
+      alert("BAGIAN VIII WAJIB: Daftar Kontak Erat & Profilaksis harus diisi minimal 1 orang kontak erat.");
+      return;
+    }
+
+    const kontakList = [];
+    for (let i = 0; i < contactRows.length; i++) {
+      const tr = contactRows[i];
       const nama = tr.querySelector(".contact-nama")?.value.trim() || "";
       const umur = tr.querySelector(".contact-umur")?.value.trim() || "";
-      const hubungan = tr.querySelector(".contact-hubungan")?.value || "Serumah";
+      const hubungan = tr.querySelector(".contact-hubungan")?.value || "";
       const gejala = tr.querySelector(".contact-gejala")?.value || "Tidak Ada";
       const imunisasi = tr.querySelector(".contact-imunisasi")?.value || "Lengkap";
       const profilaksis = tr.querySelector(".contact-profilaksis")?.value || "Ya";
-      if (nama) {
-        kontakList.push({ nama, umur, hubungan, gejala, imunisasi, profilaksis });
+
+      if (!nama) {
+        alert(`BAGIAN VIII WAJIB ISI: Nama kontak erat pada baris ke-${i + 1} belum diisi.`);
+        tr.querySelector(".contact-nama")?.focus();
+        return;
       }
-    });
+      if (!hubungan) {
+        alert(`BAGIAN VIII WAJIB ISI: Hubungan / Lingkungan kontak erat pada baris ke-${i + 1} wajib dipilih.`);
+        tr.querySelector(".contact-hubungan")?.focus();
+        return;
+      }
+      kontakList.push({ nama, umur, hubungan, gejala, imunisasi, profilaksis });
+    }
 
     const kr = parseInt(document.getElementById("form-kontak-rumah").value || "0", 10);
     const profKr = parseInt(document.getElementById("form-prof-rumah").value || "0", 10);
@@ -1337,6 +1555,10 @@ window.SIDIF_APP = {
       umurTahun: ageObj.years,
       umurBulan: ageObj.months,
       jenisKelamin: genderVal,
+      pekerjaan: pekerjaanVal,
+      telepon: teleponVal,
+      tinggiBadan: tbVal,
+      beratBadan: bbVal,
       alamat: document.getElementById("form-alamat").value.trim(),
       kecamatan: kecVal,
       kelurahan: kelVal,
@@ -1348,6 +1570,7 @@ window.SIDIF_APP = {
       nyeriMenelan: document.getElementById("form-nyeri").checked,
       bullneck: document.getElementById("form-bullneck").checked,
       pseudomembran: document.getElementById("form-pseudo").checked,
+      gejalaLain: gejalaLainVal,
       lokasiPseudomembran: ["Tenggorok / Faring"],
       dpt: dptVal,
       dt: dtVal,
@@ -1356,7 +1579,7 @@ window.SIDIF_APP = {
       statusImunisasi: dosesObj.statusImunisasi,
       tanggalTerakhirVaksinasi: document.getElementById("form-tgl-terakhir-vax").value || "-",
       sumberImunisasi: document.getElementById("form-sumber-vax").value,
-      sumberLaporan: document.getElementById("form-sumber-laporan").value,
+      sumberLaporan: sumberLaporanVal,
       tanggalLaporanDiterima: tglLaporanVal,
       tanggalPelacakan: tglPEVal,
       timelinessPE: timelinessPE,
@@ -1374,12 +1597,20 @@ window.SIDIF_APP = {
       klasifikasiKlinis: classObj.kategori,
       antibiotik: antibiotikVal,
       tanggalAntibiotik: document.getElementById("form-tgl-antibiotik").value,
+      obatLain: obatLainVal,
       adsDiberikan: adsVal,
       tanggalADS: tglAdsVal,
       adsDosis: parseInt(dosisAdsVal || "0", 10),
       keadaanAkhir: keadaanVal,
       tanggalSembuh: tglSembuhVal,
       tanggalMeninggal: tglMeninggalVal,
+      pernahKontakDifteri: pernahKontakVal,
+      kontakKasusNama: kontakKasusNamaVal,
+      kontakKasusHubungan: kontakKasusHubunganVal,
+      kontakKasusTgl: kontakKasusTglVal,
+      pernahBepergianKlb: pernahBepergianVal,
+      travelDaerah: travelDaerahVal,
+      travelTgl: travelTglVal,
       kontakList: kontakList,
       kontakRumah: kr,
       profilaksisRumah: profKr,
@@ -1417,6 +1648,54 @@ window.SIDIF_APP = {
     alert(`Data kasus difteri atas nama ${saved.nama} (No. Epid: ${saved.noEpid}) berhasil disimpan dan diselaraskan ke database provinsi.`);
 
     this.resetFormFields();
+    this.showView("table-data");
+  },
+
+  // Pembatalan Dokumen Penyelidikan Epidemiologi (VOID)
+  voidCurrentCase() {
+    const caseId = document.getElementById("form-case-id") ? document.getElementById("form-case-id").value : null;
+    if (!caseId) {
+      alert("Hanya kasus yang telah tersimpan di database yang dapat dibatalkan (VOID).\nUntuk formulir baru yang belum disimpan, gunakan tombol 'Bersihkan Formulir'.");
+      return;
+    }
+    const c = window.SIDIF_STORE.getCaseById(caseId);
+    if (!c) {
+      alert("Data kasus tidak ditemukan.");
+      return;
+    }
+
+    const confirmVoid = confirm(
+      `PERINGATAN PEMBATALAN DOKUMEN EPIDEMIOLOGI (VOID):\n\n` +
+      `Apakah Anda yakin ingin MEMBATALKAN (VOID) dokumen PE berikut?\n` +
+      `• No. EPID: ${c.noEpid}\n` +
+      `• Nama Pasien: ${c.nama} (${c.kabupaten})\n\n` +
+      `KONSEKUENSI PENTING:\n` +
+      `1. Nomor EPID ${c.noEpid} akan HANGUS dan TIDAK DAPAT digunakan kembali.\n` +
+      `2. Dokumen tetap tersimpan dalam riwayat audit dengan status VOID dicoret merah.\n` +
+      `3. Data kasus ini otomatis dikecualikan dari perhitungan dashboard surveilans aktif.\n\n` +
+      `Ketik OK untuk melanjutkan pembatalan.`
+    );
+    if (!confirmVoid) return;
+
+    const user = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
+    const username = user ? user.username : "Petugas";
+
+    c.statusAdmin = "VOID";
+    c.isVoid = true;
+    c.statusDokumen = "VOID";
+    c.voidAt = new Date().toISOString();
+    c.voidBy = username;
+
+    const saved = window.SIDIF_STORE.saveCase(c);
+    if (window.SIDIF_CLOUD && window.SIDIF_CLOUD.isOnline) {
+      window.SIDIF_CLOUD.syncCaseToCloud(saved);
+    }
+    window.SIDIF_STORE.logAudit(username, "VOID_CASE", `Membatalkan (VOID) dokumen kasus No. EPID ${c.noEpid}`);
+
+    alert(`DOKUMEN DIBATALKAN:\nDokumen PE No. EPID ${c.noEpid} atas nama ${c.nama} telah resmi di-VOID dan dicoret.`);
+    this.resetFormFields();
+    this.renderTableData();
+    this.applyDashboardFilters();
     this.showView("table-data");
   },
 
@@ -1903,8 +2182,41 @@ window.SIDIF_APP = {
 
     const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
     const currentUsername = currentUser ? currentUser.username : null;
+    const isSuperAdmin = !currentUser || currentUser.role === "superadmin" || currentUser.type === "provinsi" || (currentUser.region && currentUser.region.toLowerCase().includes("provinsi"));
+    const norm = (s) => (s || "").toLowerCase().replace(/^(kabupaten|kota)\s+/i, "").trim();
+    const userNormRegion = currentUser && currentUser.region ? norm(currentUser.region) : "";
 
-    feed.innerHTML = this.chatMessages.map(m => {
+    // ISOLASI DATA PRIVASI KABUPATEN/KOTA PADA PERCAKAPAN CHAT
+    // Data query kabupaten A tersembunyi dari kabupaten B, tapi tetap terlihat penuh oleh Provinsi
+    const visibleMessages = this.chatMessages.filter(m => {
+      // 1. Pesan selamat datang awal bot terlihat oleh semua
+      if (m.id === "msg-welcome-bot") return true;
+
+      // 2. Super Admin (Provinsi) memiliki wewenang penuh melihat seluruh percakapan dan respon data
+      if (isSuperAdmin) return true;
+
+      // 3. Pesan koordinasi umum non-data terbuka untuk komunikasi lintas kabupaten
+      if (!m.isDataQuery) return true;
+
+      // 4. Jika pesan berkaitan dengan data surveilans kasus:
+      // Tampilkan jika dikirim oleh user sendiri atau ditujukan untuk user ini
+      if (currentUsername && (m.senderUsername === currentUsername || m.replyToUser === currentUsername)) {
+        return true;
+      }
+
+      // Tampilkan jika wilayah target atau wilayah pengirim sama dengan wilayah wewenang petugas
+      const msgTargetNorm = norm(m.targetRegion);
+      const msgSenderNorm = norm(m.senderRegion || m.region);
+
+      if (userNormRegion && (msgTargetNorm === userNormRegion || msgSenderNorm === userNormRegion)) {
+        return true;
+      }
+
+      // Sembunyikan data daerah lain (misal Sidoarjo & Malang tidak dapat melihat query data Surabaya)
+      return false;
+    });
+
+    feed.innerHTML = visibleMessages.map(m => {
       const isBot = !!m.isBot;
       const isMe = !isBot && currentUsername && (m.senderUsername === currentUsername || (m.sender && m.sender.startsWith(currentUsername)));
 
@@ -1960,6 +2272,7 @@ window.SIDIF_APP = {
     const sender = user ? user.username : "Petugas Tamu";
     const role = user ? (user.role === "superadmin" || user.type === "provinsi" ? "PROVINSI" : "KAB/KOTA") : "OPERATOR";
     const region = user ? user.region : "Jawa Timur";
+    const isDataQuery = this.isEpidemiologyQuery(textVal);
 
     const userMsg = {
       id: "msg-" + Date.now(),
@@ -1969,7 +2282,11 @@ window.SIDIF_APP = {
       region: region,
       text: textVal,
       time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      isBot: false,
+      isDataQuery: isDataQuery,
+      targetRegion: region,
+      senderRegion: region
     };
 
     this.chatMessages.push(userMsg);
@@ -1983,7 +2300,7 @@ window.SIDIF_APP = {
     }
 
     // CEK APAKAH PESAN ADALAH PERTANYAAN DATA EPIDEMIOLOGI
-    if (this.isEpidemiologyQuery(textVal)) {
+    if (isDataQuery) {
       setTimeout(() => {
         const botReply = this.generateEpidemiologyAnswer(textVal);
         this.chatMessages.push(botReply);
@@ -2245,7 +2562,11 @@ window.SIDIF_APP = {
       text: responseText,
       time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
       timestamp: Date.now(),
-      isBot: true
+      isBot: true,
+      isDataQuery: true,
+      targetRegion: activeRegion || (isRegional ? userRegion : "Jawa Timur"),
+      senderRegion: isRegional ? userRegion : "Jawa Timur",
+      replyToUser: currentUser ? currentUser.username : null
     };
   },
 
@@ -2264,7 +2585,38 @@ window.SIDIF_APP = {
       osc.stop(audioCtx.currentTime + 0.15);
     } catch(e) {}
   },
-setupEventListeners() {
+
+  // Pengendali Rahasia Bukti Otentik Asal Sistem (Secret Easter Egg Trigger)
+  _secretClickCount: 0,
+  _secretClickTimer: null,
+
+  handleSecretTrigger() {
+    this._secretClickCount = (this._secretClickCount || 0) + 1;
+    if (this._secretClickTimer) clearTimeout(this._secretClickTimer);
+    this._secretClickTimer = setTimeout(() => {
+      this._secretClickCount = 0;
+    }, 2500);
+
+    if (this._secretClickCount >= 5) {
+      this._secretClickCount = 0;
+      this.openSecretAuthorshipModal();
+    }
+  },
+
+  openSecretAuthorshipModal() {
+    const modal = document.getElementById("modal-secret-authorship");
+    if (modal) {
+      modal.classList.remove("hidden");
+    }
+  },
+
+  setupEventListeners() {
+    // Tombol Kombinasi Rahasia Bukti Otentik (Ctrl + Alt + Shift + S)
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.altKey && e.shiftKey && e.key && e.key.toLowerCase() === "s") {
+        this.openSecretAuthorshipModal();
+      }
+    });
     // Dropdown Pilihan Wilayah di Dashboard
     const regionSelect = document.getElementById("dashboard-region-select");
     if (regionSelect) {

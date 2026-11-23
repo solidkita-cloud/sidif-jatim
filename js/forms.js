@@ -36,9 +36,9 @@ window.SIDIF_FORMS = {
   },
 
   // 2. Hitung Total Dosis Vaksin Difteri (DPT + DT + Td) Berdasarkan Umur Resmi Kemenkes:
-  // - Usia < 1 tahun (bayi): Maksimal 3 dosis dasar. Total >= 3 dihitung LENGKAP (Hijau).
-  // - Usia 1 - 5 tahun: Wajib 4 dosis (3 dasar + 1 booster baduta 18 bln) dihitung LENGKAP (Hijau).
-  // - Usia > 5 tahun: 4-5 dosis lanjutan sekolah (BIAS DT/Td) dihitung LENGKAP.
+  // - s/d 18 bulan (bayi & baduta): Wajib 3x imunisasi untuk Lengkap (Hijau).
+  // - setelah 18 bulan s/d 5 tahun: Wajib 4x imunisasi (3 dasar + 1 booster 18 bln) untuk Lengkap (Hijau).
+  // - Usia > 5 tahun (anak sekolah & dewasa): Wajib >= 4 dosis untuk Lengkap.
   calculateDoses(dptVal, dtVal, tdVal, ageYears = null, ageMonths = null) {
     let dptCount = 0;
     if (dptVal === "1") dptCount = 1;
@@ -69,10 +69,12 @@ window.SIDIF_FORMS = {
       statusImunisasi = "Tidak diimunisasi";
       isLengkap = false;
     } else {
-      // 1. Usia < 1 Tahun (Bayi)
-      if (ageYears !== null && ageYears < 1) {
+      const ageTotalMonths = (ageYears !== null ? ageYears * 12 : 0) + (ageMonths !== null ? ageMonths : 0);
+
+      // 1. Usia s/d 18 Bulan (Wajib minimal 3x imunisasi untuk status Lengkap)
+      if (ageTotalMonths <= 18 && (ageYears !== null || ageMonths !== null)) {
         if (total >= 3) {
-          label = `Lengkap (${total} Dosis Dasar Bayi)`;
+          label = `Lengkap (${total} Dosis s/d 18 Bln)`;
           statusImunisasi = "Imunisasi lengkap";
           isLengkap = true;
         } else {
@@ -81,10 +83,10 @@ window.SIDIF_FORMS = {
           isLengkap = false;
         }
       }
-      // 2. Usia 1 - 5 Tahun (Balita / Baduta)
-      else if (ageYears !== null && ageYears >= 1 && ageYears <= 5) {
+      // 2. Usia setelah 18 Bulan s/d 5 Tahun (Wajib 4x imunisasi untuk status Lengkap)
+      else if (ageTotalMonths > 18 && ageTotalMonths <= 60 && (ageYears !== null || ageMonths !== null)) {
         if (total >= 4) {
-          label = `Lengkap (${total} Dosis)`;
+          label = `Lengkap (${total} Dosis s/d 5 Th)`;
           statusImunisasi = "Imunisasi lengkap";
           isLengkap = true;
         } else {
@@ -93,7 +95,7 @@ window.SIDIF_FORMS = {
           isLengkap = false;
         }
       }
-      // 3. Usia > 5 Tahun (Anak Sekolah & Dewasa)
+      // 3. Usia > 5 Tahun (Anak Sekolah & Dewasa - Wajib >= 4 dosis)
       else {
         if (total >= 4) {
           label = `Lengkap (${total} Dosis)`;
@@ -416,7 +418,8 @@ window.SIDIF_FORMS = {
     return { code: "3500", prov: "35", kab: "00", name: regionName, type: "kabupaten" };
   },
 
-  // Generator Nomor EPID Baku Kemenkes (9 Digit: D-[Prov:2][Kab:2][Tahun:2][Urut:3])
+  // Generator Nomor EPID Baku Kemenkes (Format Resmi: D-[Prov:2][Kab:2]-[Tahun:4]-[Urut:3])
+  // Berdasarkan Permendagri & Petunjuk Teknis Resmi Surveilans Difteri Kemenkes RI
   generateNoEpid(kabupatenName, customSeq = null, year = null, format = "standard") {
     const yrFull = year || new Date().getFullYear();
     const yr2 = String(yrFull).slice(-2);
@@ -424,7 +427,7 @@ window.SIDIF_FORMS = {
     const provCode = meta.prov || "35";
     const kabCode = meta.kab || "00";
 
-    // Hitung nomor urut kasus di wilayah ini pada tahun berjalan
+    // Hitung nomor urut kasus di wilayah ini pada tahun berjalan (termasuk kasus VOID agar nomor hangus tidak dobel)
     let seq = customSeq;
     if (!seq) {
       const allCases = window.SIDIF_STORE ? window.SIDIF_STORE.getCases() : [];
@@ -438,12 +441,16 @@ window.SIDIF_FORMS = {
     }
 
     const padSeq = String(seq).padStart(3, "0");
-    const digitsOnly = `${provCode}${kabCode}${yr2}${padSeq}`; // 351526001 (9 Digit Angka Baku)
-    const rawCode = `D-${digitsOnly}`; // D-351526001 (9 Digit Baku Kemenkes)
-    const segmentedCode = `D-${provCode}.${kabCode}-${yrFull}-${padSeq}`; // D-35.15-2026-001 (Format Readable)
+    const officialCode = `D-${provCode}${kabCode}-${yrFull}-${padSeq}`; // D-3515-2026-001 (Format Resmi Kemenkes RI)
+    const digitsOnly = `${provCode}${kabCode}${yrFull}${padSeq}`; // 35152026001
+    const raw9Digits = `${provCode}${kabCode}${yr2}${padSeq}`; // 351526001
 
     if (format === "digits") {
-      return digitsOnly;
+      return `${provCode}${kabCode}-${yrFull}-${padSeq}`;
+    }
+
+    if (format === "raw9") {
+      return `D-${raw9Digits}`;
     }
 
     if (format === "boxes") {
@@ -451,20 +458,16 @@ window.SIDIF_FORMS = {
         prefix: "D",
         prov: provCode,
         kab: kabCode,
-        year: yr2,
+        year: yrFull,
         seq: padSeq,
         fullKemendagri: `${provCode}${kabCode}`,
-        raw: rawCode,
-        segmented: segmentedCode,
+        official: officialCode,
+        raw: `D-${raw9Digits}`,
         digits: [provCode[0], provCode[1], kabCode[0], kabCode[1], yr2[0], yr2[1], padSeq[0], padSeq[1], padSeq[2]]
       };
     }
 
-    if (format === "segmented") {
-      return segmentedCode;
-    }
-
-    return rawCode;
+    return officialCode;
   },
 
   // Parse string No. EPID apapun menjadi 9 digit array untuk kotak Form DIF-1

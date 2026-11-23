@@ -21,23 +21,15 @@
 <body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col">
 
   <!-- ========================================================================= -->
-  <!-- 1. VIEW: WELCOME SCREEN (MINIMALIS PUTIH DENGAN JUDUL DINAMIS "SIDIF")     -->
+  <!-- 1. VIEW: WELCOME SCREEN (MINIMALIS BERSIH DENGAN JUDUL "E-SIDIF")           -->
   <!-- ========================================================================= -->
   <section id="view-welcome" class="app-view min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
     <div class="max-w-2xl mx-auto flex flex-col items-center">
-      <!-- Slot Logo Resmi -->
-      <div id="welcome-logo-slot" class="w-28 h-28 mb-6 rounded-full bg-slate-50 border-2 border-emerald-700/20 flex flex-col items-center justify-center shadow-inner">
-        <svg class="w-14 h-14 text-[#0F7A4F]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-        </svg>
-        <span class="text-[10px] text-emerald-800 font-bold uppercase tracking-wider mt-1">Dinkes Jatim</span>
-      </div>
-
       <!-- Teks Judul Utama (Default: E-SIDIF) -->
       <h1 class="site-name-display text-5xl md:text-6xl font-black text-[#0F7A4F] tracking-tight mb-3">E-SIDIF</h1>
       
       <p class="site-subtitle-display text-xl md:text-2xl font-bold text-slate-800 max-w-xl mb-2 tracking-wide">
-        ELEKTRONIK SISTEM INFORMASI DIFTERI
+        ELEKTRONIK SIMULASI DIFTERI
       </p>
       
       <p class="text-sm text-slate-500 max-w-md mb-8">
@@ -45,7 +37,7 @@
       </p>
 
       <!-- Tombol Masuk Utama -->
-      <button onclick="window.SIDIF_APP.showView('dashboard')" class="inline-flex items-center gap-3 px-8 py-4 bg-[#0F7A4F] hover:bg-[#15803D] text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5">
+      <button onclick="window.SIDIF_APP.showView('dashboard')" class="inline-flex items-center gap-3 px-8 py-4 bg-[#0F7A4F] hover:bg-[#15803D] text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 cursor-pointer">
         <span>Buka Dashboard Surveilans</span>
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
       </button>
@@ -66,15 +58,14 @@
     <header class="no-print bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
         
-        <!-- Logo & Title -->
+        <!-- Title (Clean Without Logo) -->
         <div class="flex items-center gap-3 cursor-pointer" onclick="window.SIDIF_APP.showView('welcome')">
-          <div class="w-10 h-10 rounded-lg bg-[#0F7A4F] flex items-center justify-center text-white font-black text-base shadow-sm">ES</div>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="site-name-display text-lg font-black text-slate-800 tracking-tight leading-tight">E-SIDIF</h2>
+              <h2 class="site-name-display text-xl font-black text-slate-800 tracking-tight leading-tight">E-SIDIF</h2>
               <span class="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded uppercase">Jawa Timur</span>
             </div>
-            <p class="site-subtitle-display text-xs text-slate-500 font-medium tracking-wide">ELEKTRONIK SISTEM INFORMASI DIFTERI</p>
+            <p class="site-subtitle-display text-xs text-slate-500 font-medium tracking-wide">ELEKTRONIK SIMULASI DIFTERI</p>
           </div>
         </div>
 
@@ -310,7 +301,7 @@
         <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
           <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Kasus Difteri</p>
           <p id="kpi-total-kasus" class="text-2xl lg:text-3xl font-black text-[#DC2626] mt-1">277 <span class="text-xs font-normal text-slate-500">Kasus</span></p>
-          <p id="kpi-sub-kasus" class="text-[11px] text-slate-500 mt-1">Lab: 17 | Klinis: 260</p>
+          <p id="kpi-sub-kasus" class="text-[11px] text-slate-500 mt-1">Positif: 17 Kasus</p>
         </div>
 
         <!-- 2. Positivity Rate BBLKM -->
@@ -363,8 +354,14 @@
               <span class="text-xs text-slate-400">Klik wilayah pada peta untuk melihat data lokal</span>
             </div>
 
-            <!-- Leaflet Container -->
-            <div id="map-container" class="w-full h-[380px] bg-slate-100 rounded-lg border border-slate-200 relative z-10"></div>
+            <!-- Leaflet Container Wrapper -->
+            <div class="relative w-full rounded-lg overflow-hidden border border-slate-200">
+              <button id="btn-reset-map" onclick="window.SIDIF_APP.resetToProvinceMap()" class="absolute top-3 right-3 z-[400] bg-white/95 hover:bg-white text-slate-800 text-xs font-bold px-3 py-1.5 rounded-lg shadow-md border border-slate-300 flex items-center gap-1.5 transition cursor-pointer hover:text-emerald-700 hover:border-emerald-500">
+                <svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>Kembali ke Seluruh Jatim</span>
+              </button>
+              <div id="map-container" class="w-full h-[380px] bg-slate-100 relative z-10"></div>
+            </div>
           </div>
 
           <!-- Peta Legenda Keterangan -->
@@ -393,8 +390,11 @@
         <!-- RIGHT SIDE: DETAIL KARTU WILAYAH TERPILIH -->
         <div class="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between shadow-xs">
           <div>
-            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
-              <h4 id="card-region-name" class="font-black text-xl text-slate-800">Seluruh Jawa Timur</h4>
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3 gap-2">
+              <h4 id="card-region-name" class="font-black text-xl text-slate-800 break-words leading-tight">Seluruh Jawa Timur</h4>
+              <button onclick="window.SIDIF_APP.resetToProvinceMap()" class="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition cursor-pointer shrink-0" title="Kembalikan tampilan peta ke seluruh provinsi">
+                Lihat Provinsi
+              </button>
             </div>
 
             <div class="space-y-3 text-sm">
@@ -419,7 +419,7 @@
             <!-- Penjelasan Epidemiologi Bahasa Manusia -->
             <div class="mt-4 p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
               <span class="font-bold text-slate-700 block mb-1">Keterangan Resmi Surveilans:</span>
-              <p id="card-region-explanation" class="leading-relaxed">
+              <p id="card-region-explanation" class="leading-relaxed break-words whitespace-normal max-h-48 overflow-y-auto">
                 Data kumulatif Jawa Timur mencakup 277 kasus difteri dengan 17 kasus konfirmasi lab kultur BBLKM yang tersebar di 10 Kabupaten/Kota, serta 4 kasus kematian (Tuban: 2, Gresik: 1, Sumenep: 1).
               </p>
             </div>
@@ -616,11 +616,117 @@
             <span class="text-[10px] text-slate-400 block mt-1">Teman Sepermainan</span>
           </div>
         </div>
+      <!-- GRAFIK ROW 4: 3 GRAFIK INDIKATOR KHUSUS (ADS, CFR KEMATIAN, KETEPATAN PE <24 JAM) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- 1. Terapi ADS (Proporsi Diberi ADS vs Seluruh Kasus) -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <div class="flex items-center gap-1.5">
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 font-black text-[10px] rounded uppercase tracking-wider">Slide 8 PPT</span>
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Proporsi Terapi ADS</h4>
+              </div>
+              <button type="button" onclick="window.SIDIF_CHARTS.downloadChart('chart-ads-proportion', 'Grafik_Proporsi_Terapi_ADS')" class="text-slate-400 hover:text-slate-700" title="Unduh grafik">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">Persentase kasus diberi ADS = Kasus ADS / Seluruh Kasus</p>
+            <div class="h-44 w-full">
+              <canvas id="chart-ads-proportion"></canvas>
+            </div>
+          </div>
+          <p id="chart-ads-subtext" class="text-[11px] text-slate-500 mt-2 text-center font-medium">82 dari 277 Kasus (29.6%) Diberikan Serum ADS</p>
+        </div>
+
+        <!-- 2. Angka Kematian (CFR %) menurut Umur -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <div class="flex items-center gap-1.5">
+                <span class="px-2 py-0.5 bg-red-100 text-red-800 font-black text-[10px] rounded uppercase tracking-wider">Fatalitas</span>
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">CFR Menurut Kelompok Umur</h4>
+              </div>
+              <button type="button" onclick="window.SIDIF_CHARTS.downloadChart('chart-cfr-analysis', 'Grafik_CFR_Angka_Kematian_Umur')" class="text-slate-400 hover:text-slate-700" title="Unduh grafik">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">Distribusi 4 kematian &amp; rasio fatalitas kasus difteri</p>
+            <div class="h-44 w-full">
+              <canvas id="chart-cfr-analysis"></canvas>
+            </div>
+          </div>
+          <p id="chart-cfr-subtext" class="text-[11px] text-slate-500 mt-2 text-center font-medium">CFR Jatim: 1.4% (4 Kasus Meninggal Dunia)</p>
+        </div>
+
+        <!-- 3. Ketepatan Penyelidikan Epidemiologi (PE < 24 Jam) -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <div class="flex items-center gap-1.5">
+                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded uppercase tracking-wider">Target &ge;90%</span>
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Ketepatan PE (&lt; 24 Jam)</h4>
+              </div>
+              <button type="button" onclick="window.SIDIF_CHARTS.downloadChart('chart-pe-timeliness', 'Grafik_Ketepatan_Penyelidikan_PE')" class="text-slate-400 hover:text-slate-700" title="Unduh grafik">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">Respon pelacakan lapangan setelah laporan sinyal diterima</p>
+            <div class="h-44 w-full">
+              <canvas id="chart-pe-timeliness"></canvas>
+            </div>
+          </div>
+          <p id="chart-pe-subtext" class="text-[11px] text-emerald-700 mt-2 text-center font-bold">94.2% Tepat Waktu (&lt; 24 Jam)</p>
+        </div>
+
       </div>
 
-    
+      <!-- GRAFIK ROW 5: 2 GRAFIK ANALISIS MENDALAM (KOMPOSISI KONTAK & SUMBER LAPORAN FASKES) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        <!-- 4. Komposisi Kontak Erat & Profilaksis -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1 pb-1 border-b border-slate-100">
+              <div class="flex items-center gap-1.5">
+                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded uppercase tracking-wider">Pelacakan</span>
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Komposisi Kontak Erat &amp; Profilaksis</h4>
+              </div>
+              <button type="button" onclick="window.SIDIF_CHARTS.downloadChart('chart-contacts-composition', 'Grafik_Komposisi_Kontak_Erat_Profilaksis')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg flex items-center gap-1 transition cursor-pointer" title="Unduh grafik">
+                <svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Unduh PNG</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">Perbandingan jumlah kontak erat terlacak vs penerima profilaksis eritromisin</p>
+            <div class="h-48 w-full">
+              <canvas id="chart-contacts-composition"></canvas>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2 text-center">Mayoritas kontak berasal dari keluarga serumah (83.3%)</p>
+        </div>
 
-    </main>
+        <!-- 5. Sumber Laporan Faskes -->
+        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div class="flex justify-between items-center mb-1 pb-1 border-b border-slate-100">
+              <div class="flex items-center gap-1.5">
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 font-black text-[10px] rounded uppercase tracking-wider">Faskes Pelapor</span>
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Distribusi Sumber Laporan Faskes</h4>
+              </div>
+              <button type="button" onclick="window.SIDIF_CHARTS.downloadChart('chart-source-faskes', 'Grafik_Sumber_Laporan_Faskes')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg flex items-center gap-1 transition cursor-pointer" title="Unduh grafik">
+                <svg class="w-3.5 h-3.5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Unduh PNG</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">Sebaran faskes pertama yang mendeteksi dan melaporkan kasus difteri</p>
+            <div class="h-48 w-full">
+              <canvas id="chart-source-faskes"></canvas>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2 text-center">Puskesmas dan Rumah Sakit Daerah menjadi garda utama pelaporan</p>
+        </div>
+
+      </div>
 
 
     <!-- ========================================================================= -->
@@ -646,12 +752,15 @@
       <form id="main-dif3-form" onsubmit="event.preventDefault(); window.SIDIF_APP.handleFormSubmit();" class="bg-white border border-slate-200 rounded-xl p-6 space-y-6 shadow-xs">
         <input type="hidden" id="form-case-id">
 
-        <!-- ==================== BAGIAN I: IDENTITAS PELAPOR ==================== -->
+        <!-- ==================== BAGIAN I: IDENTITAS PELAPOR & PE ==================== -->
         <div class="p-5 bg-blue-50/70 border-2 border-blue-400 rounded-xl space-y-4">
           <div class="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-blue-200">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-              <h3 class="text-sm font-black text-blue-950 uppercase tracking-wide">BAGIAN I: IDENTITAS PELAPOR & PETUGAS PENYELIDIK EPIDEMIOLOGI (PE)</h3>
+            <div class="flex flex-col gap-0.5">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                <h3 class="text-sm font-black text-blue-950 uppercase tracking-wide">BAGIAN I: IDENTITAS PELAPOR &amp; PETUGAS PENYELIDIK EPIDEMIOLOGI (PE)</h3>
+              </div>
+              <span class="text-xs text-blue-800 font-semibold italic ml-4.5">(Yang menandatangani Form PE)</span>
             </div>
             <span class="px-2 py-0.5 bg-blue-700 text-white text-[10px] font-black rounded uppercase">FORM DIF-1 RESMI</span>
           </div>
@@ -661,10 +770,6 @@
               <input type="text" id="form-pelapor-nama" placeholder="Contoh: JOKO WALUYO, S.Kep" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-blue-600">
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-800 mb-1">NIP Petugas Pelapor</label>
-              <input type="text" id="form-pelapor-nip" placeholder="Contoh: 19820918 200912 1 001" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-600">
-            </div>
-            <div>
               <label class="block text-xs font-bold text-slate-800 mb-1">Kantor / Faskes Pelapor <span class="text-red-600 font-black">*WAJIB</span></label>
               <input type="text" id="form-pelapor-kantor" placeholder="Contoh: Puskesmas Kebonagung" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-blue-600">
             </div>
@@ -672,55 +777,58 @@
               <label class="block text-xs font-bold text-slate-800 mb-1">Jabatan Petugas</label>
               <input type="text" id="form-pelapor-jabatan" placeholder="Contoh: Epidemiolog Kesehatan Ahli" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-600">
             </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Sumber Laporan Faskes <span class="text-red-600 font-black">*WAJIB</span></label>
+              <select id="form-pelapor-sumber" onchange="window.SIDIF_APP.handleSumberLaporanChange(this.value)" class="w-full h-11 px-3 bg-white border border-blue-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-600">
+                <option value="Puskesmas">Puskesmas</option>
+                <option value="Rumah Sakit">Rumah Sakit</option>
+                <option value="Klinik swasta">Klinik Swasta / Mandiri</option>
+                <option value="Dinas Kesehatan">Dinas Kesehatan</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+            <div id="wrapper-sumber-lainnya" class="hidden md:col-span-2">
+              <label class="block text-xs font-bold text-blue-900 mb-1">Isi Sumber Laporan Lainnya Secara Manual <span class="text-red-600">*</span></label>
+              <input type="text" id="form-sumber-lainnya-text" oninput="window.SIDIF_APP.syncSumberLaporan()" placeholder="Ketik nama faskes / instansi sumber laporan..." class="w-full h-11 px-3 bg-white border border-blue-400 rounded-lg text-xs font-semibold">
+            </div>
           </div>
         </div>
 
-        <!-- ==================== BAGIAN II ==================== -->
+        <!-- ==================== BAGIAN II: IDENTITAS PASIEN ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 flex items-center justify-between">
-          <span>BAGIAN II: IDENTITAS PASIEN & GEOGRAFIS (KOLOM 1 - 10)</span>
+          <span>BAGIAN II: IDENTITAS PASIEN &amp; GEOGRAFIS (KOLOM 1 - 10)</span>
           <span class="text-[11px] text-amber-700 font-semibold lowercase">latar krem = kolom wajib</span>
         </h3>
+
+        <!-- BANNER DOKUMEN VOID (HANYA MUNCUL JIKA KASUS INI DIBATALKAN/VOID) -->
+        <div id="banner-case-void" class="hidden p-4 bg-red-100 border-2 border-red-500 rounded-xl text-red-900 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 bg-red-600 text-white font-black text-xs rounded uppercase">STATUS: VOID</span>
+            <span class="text-xs font-bold">Dokumen Penyelidikan Epidemiologi ini telah DIBATALKAN (VOID). Nomor EPID ini hangus dan tidak dapat diaktifkan kembali.</span>
+          </div>
+          <span class="text-xs font-mono font-black text-red-700 line-through" id="void-no-epid-badge"></span>
+        </div>
 
         <!-- NOMOR EPIDEMIOLOGI (NO. EPID - KODE IDENTITAS UTAMA RESMI KEMENKES) -->
         <div class="p-4 bg-emerald-50 border-2 border-emerald-500 rounded-xl">
           <div class="flex flex-wrap justify-between items-center gap-2 mb-1.5">
             <div class="flex items-center gap-2">
               <label class="block text-sm font-black text-emerald-950 uppercase tracking-wide">Nomor Epidemiologi (No. EPID Kasus)</label>
-              <span class="px-2 py-0.5 bg-[#0F7A4F] text-white text-[10px] font-black rounded uppercase">IDENTITAS BAKU KEMENKES RI</span>
+              <span class="px-2 py-0.5 bg-[#0F7A4F] text-white text-[10px] font-black rounded uppercase">FORMAT RESMI KEMENKES RI</span>
             </div>
-            <span class="text-xs text-emerald-800 font-bold font-mono">Format 9 Digit: D - [Prov: 35][Kab/Kota: 01-79][Thn: 26][Urut: 001]</span>
+            <span class="text-xs text-emerald-800 font-bold font-mono">Format Resmi: D - [Prov: 35][Kab: 15] - [Tahun: 2026] - [Urut: 001]</span>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
             <div class="md:col-span-2">
               <div class="flex items-stretch rounded-lg border-2 border-emerald-500 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-600 bg-white shadow-xs">
-                <span class="px-4 py-3 bg-[#0F7A4F] text-white font-mono font-black text-lg select-none shrink-0 flex items-center justify-center border-r border-emerald-600">D -</span>
-                <input type="text" id="form-no-epid" placeholder="351526001" maxlength="12" class="w-full h-12 px-4 bg-white font-mono text-lg font-black text-emerald-950 tracking-widest outline-none border-none focus:ring-0">
+                <span class="px-4 py-3 bg-[#0F7A4F] text-white font-mono font-black text-base select-none shrink-0 flex items-center justify-center border-r border-emerald-600">D -</span>
+                <input type="text" id="form-no-epid" placeholder="3515-2026-001" maxlength="20" class="w-full h-12 px-4 bg-white font-mono text-base font-black text-emerald-950 tracking-wider outline-none border-none focus:ring-0">
               </div>
-              <p class="text-[11px] text-emerald-800 mt-1 font-medium">Ketik <strong>9 digit angka</strong> saja (misal: <code>351526001</code>). Awalan <strong>D -</strong> ditambahkan otomatis.</p>
+              <p class="text-[11px] text-emerald-800 mt-1 font-medium">Nomor otomatis terisi dan berurutan per Kabupaten/Kota &amp; Tahun berjalan (misal: <code>3515-2026-001</code>).</p>
             </div>
             <div class="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-emerald-200">
-              <p>Sesuai Juknis Surveilans Difteri 2023, No. EPID terdiri dari <strong>9 digit kotak baku</strong>: Kode Provinsi Jatim (35), Kode Wilayah Kab/Kota (3501–3579), 2 digit tahun, dan nomor urut tahunan.</p>
+              <p>Sesuai Petunjuk Teknis Surveilans Difteri Kemenkes RI, nomor urut di-reset tiap kabupaten/kota per awal tahun. Jika dokumen di-VOID, nomor urut hangus dan tidak dapat dialokasikan ulang.</p>
             </div>
-          </div>
-        </div>
-
-        <!-- NIK Pasien (OPSIONAL) -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start p-4 bg-slate-50 border border-slate-300 rounded-xl">
-          <div class="md:col-span-2">
-            <div class="flex items-center gap-2 mb-1">
-              <label class="block text-sm font-bold text-slate-800">Nomor Induk Kependudukan (NIK) Pasien</label>
-              <span class="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded uppercase">OPSIONAL</span>
-            </div>
-            <input type="text" id="form-nik" placeholder="Opsional (16 digit angka jika ada)" maxlength="16" class="w-full h-12 px-3 bg-white border border-slate-300 rounded-lg font-mono text-base focus:ring-2 focus:ring-[#0F7A4F]">
-            
-            <div class="mt-2 flex items-center gap-2">
-              <input type="checkbox" id="form-no-nik-chk" class="w-4 h-4 text-[#0F7A4F] rounded cursor-pointer" onchange="document.getElementById('form-nik').disabled = this.checked;">
-              <label for="form-no-nik-chk" class="text-xs text-slate-600 cursor-pointer font-medium">Bayi Belum Memiliki NIK Resmi</label>
-            </div>
-          </div>
-          <div class="bg-white border border-slate-200 p-3 rounded-lg text-xs text-slate-600 shadow-2xs">
-            <p class="font-bold text-slate-800 mb-1">Panduan Identitas:</p>
-            <p>Pengisian data difokuskan pada <strong>No. EPID Kasus</strong> sebagai kunci rekam medis utama. NIK bersifat opsional dan tidak memblokir simpan formulir jika belum tersedia.</p>
           </div>
         </div>
 
@@ -742,6 +850,48 @@
               <span class="px-2 py-0.5 bg-red-600 text-white text-[10px] font-black rounded uppercase">WAJIB</span>
             </div>
             <input type="text" id="form-nama-ibu" placeholder="Nama ibu kandung untuk verifikasi anti-dobel" class="w-full h-12 px-3 bg-white border border-amber-400 rounded-lg text-base">
+          </div>
+        </div>
+
+        <!-- Pekerjaan, No Telpon, TB & BB (ISIAN DIF-1 RESMI) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <!-- Pekerjaan -->
+          <div>
+            <label class="block text-xs font-bold text-slate-800 mb-1">Pekerjaan Pasien</label>
+            <select id="form-pekerjaan" class="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-[#0F7A4F]">
+              <option value="Belum Bekerja / Balita">Belum Bekerja / Balita / Anak</option>
+              <option value="Pelajar / Mahasiswa">Pelajar / Mahasiswa</option>
+              <option value="Pegawai Negeri / PNS / TNI / POLRI">Pegawai Negeri / PNS / TNI / POLRI</option>
+              <option value="Karyawan Swasta">Karyawan Swasta</option>
+              <option value="Wiraswasta / Pedagang">Wiraswasta / Pedagang</option>
+              <option value="Petani / Buruh">Petani / Buruh</option>
+              <option value="Ibu Rumah Tangga">Ibu Rumah Tangga</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+
+          <!-- No Telepon / WA -->
+          <div>
+            <label class="block text-xs font-bold text-slate-800 mb-1">No. Telepon / HP / WhatsApp</label>
+            <input type="text" id="form-telepon" placeholder="Contoh: 081234567890" class="w-full h-11 px-3 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#0F7A4F]">
+          </div>
+
+          <!-- Tinggi Badan (TB) & Berat Badan (BB) -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Tinggi Badan (TB)</label>
+              <div class="relative">
+                <input type="number" id="form-tb" placeholder="Contoh: 110" min="20" max="250" class="w-full h-11 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#0F7A4F]">
+                <span class="absolute right-2.5 top-3 text-[10px] text-slate-400 font-bold">cm</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-800 mb-1">Berat Badan (BB)</label>
+              <div class="relative">
+                <input type="number" id="form-bb" placeholder="Contoh: 18.5" step="0.1" min="1" max="200" class="w-full h-11 px-3 pr-8 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#0F7A4F]">
+                <span class="absolute right-2.5 top-3 text-[10px] text-slate-400 font-bold">kg</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -823,20 +973,15 @@
         </div>
 
 
-        <!-- ==================== BAGIAN II ==================== -->
+        <!-- ==================== BAGIAN II: SUMBER LAPORAN & PELACAKAN ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2">
-          BAGIAN II: SUMBER LAPORAN & PELACAKAN PENYELIDIKAN EPIDEMIOLOGI (KOLOM 21 - 24, 50)
+          BAGIAN II (Lanjutan): SUMBER LAPORAN &amp; PELACAKAN PENYELIDIKAN EPIDEMIOLOGI (KOLOM 21 - 24, 50)
         </h3>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Sumber Laporan Faskes</label>
-            <select id="form-sumber-laporan" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
-              <option value="Puskesmas">Puskesmas</option>
-              <option value="Rumah Sakit">Rumah Sakit</option>
-              <option value="Klinik swasta">Klinik Swasta / Praktek Mandiri</option>
-              <option value="Dinas Kesehatan">Dinas Kesehatan</option>
-            </select>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Sumber Laporan Faskes (Sinkron Bagian I)</label>
+            <input type="text" id="form-sumber-laporan" readonly value="Puskesmas" class="w-full h-11 px-3 bg-slate-100 border border-slate-300 rounded text-xs font-bold text-slate-800 cursor-not-allowed">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Tanggal Laporan Diterima</label>
@@ -847,15 +992,15 @@
             <input type="date" id="form-tgl-pe" onchange="window.SIDIF_APP.updateLiveCalculations()" class="w-full h-11 px-3 bg-white border border-slate-300 rounded text-xs">
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Timeliness PE (< 24 Jam)</label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Timeliness PE (&lt; 24 Jam)</label>
             <input type="text" id="form-calc-timeliness-pe" readonly value="< 24 Jam" class="w-full h-11 px-3 bg-slate-100 border border-slate-300 rounded text-xs font-bold text-[#0F7A4F]">
           </div>
         </div>
 
 
-        <!-- ==================== BAGIAN III ==================== -->
+        <!-- ==================== BAGIAN III: RIWAYAT GEJALA KLINIS ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2">
-          BAGIAN III: RIWAYAT GEJALA KLINIS & TANGGAL ONSET (KOLOM 11 - 15, 53)
+          BAGIAN III: RIWAYAT GEJALA KLINIS &amp; TANGGAL ONSET (KOLOM 11 - 15, 53)
         </h3>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start p-4 bg-[#FFFBEB] border-2 border-[#F59E0B] rounded-xl">
@@ -896,6 +1041,12 @@
                 </label>
               </div>
             </div>
+
+            <!-- Gejala Lainnya (Tambahan Sesuai Form DIF-1 Resmi) -->
+            <div class="pt-1">
+              <label class="block text-xs font-bold text-slate-800 mb-1">Gejala Lainnya (Jika Ada)</label>
+              <input type="text" id="form-gejala-lain" placeholder="Contoh: Sesak nafas, suara serak, batuk mengonggong (barking cough), lemas..." class="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-xs">
+            </div>
           </div>
 
           <div class="bg-white border border-slate-200 p-3 rounded-lg text-xs text-slate-600 shadow-2xs">
@@ -905,7 +1056,7 @@
         </div>
 
 
-        <!-- ==================== BAGIAN IV ==================== -->
+        <!-- ==================== BAGIAN IV: RIWAYAT IMUNISASI ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2">
           BAGIAN IV: RIWAYAT IMUNISASI DIFTERI (KOLOM 16 - 21)
         </h3>
@@ -923,7 +1074,7 @@
                   <option value="4">4 Dosis</option>
                   <option value="Tidak Tahu">Tidak Tahu</option>
                 </select>
-                <span id="form-dpt-hint" class="text-[10.5px] text-slate-500 mt-1 block">💡 Status lengkap menyesuaikan tanggal lahir.</span>
+                <span id="form-dpt-hint" class="text-[10.5px] text-slate-500 mt-1 block">💡 s/d 18 bln wajib 3x, &gt;18 bln s/d 5 th wajib 4x untuk Lengkap.</span>
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">DT (Kelas 1 SD/MI)</label>
@@ -933,7 +1084,7 @@
                 </select>
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Td (Kelas 2 & 5 SD/MI)</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Td (Kelas 2 &amp; 5 SD/MI)</label>
                 <select id="form-td" onchange="window.SIDIF_APP.updateLiveCalculations()" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
                   <option value="0">Tidak Pernah (0)</option>
                   <option value="1">1 Dosis</option>
@@ -953,26 +1104,26 @@
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Sumber Informasi</label>
-                <select id="form-sumber-vax" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs">
+                <select id="form-sumber-vax" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
                   <option value="Buku KIA">Buku KIA</option>
                   <option value="KMS">KMS</option>
-                  <option value="Ingatan Responden">Ingatan Responden</option>
-                  <option value="Rekam Medis Faskes">Rekam Medis Faskes</option>
+                  <option value="Ingatan Responden/Wali">Ingatan Responden / Wali</option>
+                  <option value="Lainnya">Lainnya</option>
                 </select>
               </div>
             </div>
           </div>
 
           <div class="bg-white border border-slate-200 p-3 rounded-lg text-xs text-slate-600 shadow-2xs">
-            <p class="font-bold text-slate-800 mb-1">Kalkulasi Imunisasi:</p>
-            <p>Sistem menjumlahkan seluruh antigen difteri (DPT+DT+Td) dan mengkategorikan status perlindungan: <strong>Tidak Diimunisasi (0 dosis)</strong>, <strong>Belum Lengkap (1-3 dosis)</strong>, atau <strong>Lengkap (≥4 dosis)</strong>.</p>
+            <p class="font-bold text-slate-800 mb-1">Aturan Baku Imunisasi Kemenkes:</p>
+            <p>Usia <strong>s/d 18 bulan</strong> wajib minimal <strong>3x imunisasi</strong> untuk status <em>Lengkap</em>. Usia <strong>&gt;18 bulan s/d 5 tahun</strong> wajib minimal <strong>4x imunisasi</strong> untuk status <em>Lengkap</em>.</p>
           </div>
         </div>
 
 
-        <!-- ==================== BAGIAN V ==================== -->
+        <!-- ==================== BAGIAN V: SPESIMEN & LAB ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2">
-          BAGIAN V: SPESIMEN & HASIL LABORATORIUM BBLKM (KOLOM 25 - 34, 51)
+          BAGIAN V: SPESIMEN &amp; HASIL LABORATORIUM BBLKM (KOLOM 25 - 34, 51)
         </h3>
 
         <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
@@ -1026,7 +1177,7 @@
               <div class="p-2 bg-white rounded-lg border border-amber-200 flex items-start gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 mt-0.5"></span>
                 <div>
-                  <span class="font-bold text-amber-800 block">4. Tidak Ada Hasil & Tidak Periksa Lab</span>
+                  <span class="font-bold text-amber-800 block">4. Tidak Ada Hasil &amp; Tidak Periksa Lab</span>
                   <span class="text-slate-600">&rarr; Kategori: <strong>Kompatibel Klinis</strong></span>
                 </div>
               </div>
@@ -1087,18 +1238,18 @@
         </div>
 
 
-        <!-- ==================== BAGIAN VI ==================== -->
+        <!-- ==================== BAGIAN VI: TATALAKSANA & PENGOBATAN ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2">
-          BAGIAN VI: TATALAKSANA & PENGOBATAN (KOLOM 35 - 40)
+          BAGIAN VI: TATALAKSANA &amp; PENGOBATAN (KOLOM 35 - 40)
         </h3>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Pemberian Antibiotik</label>
             <select id="form-antibiotik" onchange="window.SIDIF_APP.handleAntibiotikChange()" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
-              <option value="Eritromisin" selected>Eritromisin (Oral 40 mg/kgBB/hari 14 Hari - Rekomendasi Utama)</option>
-              <option value="Penisilin Prokain">Penisilin Prokain G (IM 50.000 IU/kgBB/hari 14 Hari)</option>
-              <option value="Azitromisin">Azitromisin (Alternatif)</option>
+              <option value="Eritromisin" selected>Eritromisin</option>
+              <option value="Penisilin Prokain">Penisilin Prokain</option>
+              <option value="Azitromisin">Azitromisin</option>
               <option value="Amoksisilin">Amoksisilin</option>
               <option value="Lainnya">Lainnya (Tulis Manual)</option>
               <option value="Tidak">Tidak Diberikan</option>
@@ -1111,6 +1262,11 @@
             <label class="block text-xs font-bold text-slate-700 mb-1">Tanggal Mulai Antibiotik <span id="req-tgl-anti" class="text-red-600 font-bold">*Wajib jika Ya</span></label>
             <input type="date" id="form-tgl-antibiotik" class="w-full h-11 px-3 bg-white border border-slate-300 rounded text-xs">
           </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Obat Lain yang Diberikan (Jika Ada)</label>
+            <input type="text" id="form-obat-lain" placeholder="Contoh: Parasetamol, Deksametason, Vitamin..." class="w-full h-11 px-3 bg-white border border-slate-300 rounded text-xs">
+          </div>
+
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Keadaan Akhir</label>
             <select id="form-keadaan" onchange="window.SIDIF_APP.handleKeadaanChange()" class="w-full h-11 px-2 bg-white border border-slate-300 rounded text-xs font-semibold">
@@ -1147,10 +1303,75 @@
         </div>
 
 
-        <!-- ==================== BAGIAN VII ==================== -->
+        <!-- ==================== BAGIAN VII: RIWAYAT KONTAK & BEPERGIAN (FORM DIF-1 RESMI) ==================== -->
         <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2 flex items-center justify-between">
-          <span>BAGIAN VII: MANAJEMEN KONTAK ERAT & PROFILAKSIS (KOLOM 41 - 49)</span>
-          <span class="text-[11px] text-emerald-800 font-semibold">Format Formulir DIF-1 Resmi Kemenkes RI</span>
+          <span>BAGIAN VII: RIWAYAT KONTAK &amp; BEPERGIAN 14 HARI SEBELUM SAKIT</span>
+          <span class="text-[11px] text-blue-800 font-bold">Formulir DIF-1 Resmi Kemenkes RI</span>
+        </h3>
+
+        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+          <!-- Pertanyaan 1: Pernah Kontak dengan Penderita Difteri / Sakit Tenggorok? -->
+          <div class="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label class="text-xs font-bold text-slate-800">
+                1. Apakah dalam 14 hari sebelum sakit pernah kontak dengan penderita difteri / suspek / sakit tenggorok?
+              </label>
+              <select id="form-pernah-kontak-difteri" onchange="window.SIDIF_APP.togglePernahKontakDetail(this.value)" class="h-9 px-3 bg-white border border-slate-300 rounded text-xs font-bold text-slate-700">
+                <option value="Tidak">Tidak</option>
+                <option value="Ya">Ya</option>
+                <option value="Tidak Tahu">Tidak Tahu</option>
+              </select>
+            </div>
+
+            <!-- Detail jika Ya -->
+            <div id="wrapper-pernah-kontak-detail" class="hidden grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Nama Penderita / Suspek</label>
+                <input type="text" id="form-kontak-kasus-nama" placeholder="Tulis nama penderita..." class="w-full h-9 px-2 text-xs border rounded">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Hubungan Kontak</label>
+                <input type="text" id="form-kontak-kasus-hubungan" placeholder="Contoh: Teman sekelas, adik, tetangga..." class="w-full h-9 px-2 text-xs border rounded">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Kontak Terakhir</label>
+                <input type="date" id="form-kontak-kasus-tgl" class="w-full h-9 px-2 text-xs border rounded">
+              </div>
+            </div>
+          </div>
+
+          <!-- Pertanyaan 2: Pernah Bepergian ke Daerah KLB Difteri? -->
+          <div class="p-3 bg-white rounded-lg border border-slate-200 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label class="text-xs font-bold text-slate-800">
+                2. Apakah dalam 14 hari sebelum sakit pernah bepergian ke daerah / wilayah KLB difteri?
+              </label>
+              <select id="form-pernah-bepergian-klb" onchange="window.SIDIF_APP.toggleBepergianDetail(this.value)" class="h-9 px-3 bg-white border border-slate-300 rounded text-xs font-bold text-slate-700">
+                <option value="Tidak">Tidak</option>
+                <option value="Ya">Ya</option>
+                <option value="Tidak Tahu">Tidak Tahu</option>
+              </select>
+            </div>
+
+            <!-- Detail jika Ya -->
+            <div id="wrapper-bepergian-detail" class="hidden grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Nama Kota / Kabupaten yang Dikunjungi</label>
+                <input type="text" id="form-travel-daerah" placeholder="Contoh: Kabupaten Tuban, Gresik..." class="w-full h-9 px-2 text-xs border rounded">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Bepergian / Pulang</label>
+                <input type="date" id="form-travel-tgl" class="w-full h-9 px-2 text-xs border rounded">
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ==================== BAGIAN VIII: MANAJEMEN KONTAK ERAT & PROFILAKSIS ==================== -->
+        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider pb-2 border-b border-slate-200 pt-2 flex items-center justify-between">
+          <span>BAGIAN VIII: DAFTAR KONTAK ERAT &amp; PEMBERIAN PROFILAKSIS (WAJIB DIISI)</span>
+          <span class="text-[11px] text-red-700 font-black uppercase bg-red-100 px-2 py-0.5 rounded">Wajib Minimal 1 Kontak</span>
         </h3>
 
         <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
@@ -1162,7 +1383,7 @@
                   <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                   Daftar Identitas Kontak Erat Kasus (Form DIF-1 Halaman 3)
                 </span>
-                <p class="text-[11px] text-slate-500">Wajib menginputkan nama-nama kontak erat yang dilakukan pelacakan, status imunisasi, dan profilaksis.</p>
+                <p class="text-[11px] text-slate-500"><strong>Wajib diisi:</strong> Nama kontak dan Hubungan/Lingkungan tidak boleh kosong untuk melanjutkan simpan dokumen.</p>
               </div>
               <button type="button" onclick="window.SIDIF_APP.addContactRow()" class="px-3 py-1.5 bg-[#0F7A4F] hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-xs transition cursor-pointer">
                 <span>+ Tambah Kontak Erat</span>
@@ -1174,12 +1395,12 @@
                 <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-300">
                   <tr>
                     <th class="p-2 text-center w-10">No</th>
-                    <th class="p-2 min-w-[160px]">Nama Kontak Erat</th>
+                    <th class="p-2 min-w-[160px]">Nama Kontak Erat <span class="text-red-600">*</span></th>
                     <th class="p-2 w-20 text-center">Umur (Th)</th>
-                    <th class="p-2 min-w-[140px]">Hubungan / Lingkungan</th>
+                    <th class="p-2 min-w-[140px]">Hubungan / Lingkungan <span class="text-red-600">*</span></th>
                     <th class="p-2 min-w-[120px]">Gejala Sakit</th>
                     <th class="p-2 min-w-[130px]">Status Imunisasi</th>
-                    <th class="p-2 min-w-[110px]">Profilaksis (Eritromisin)</th>
+                    <th class="p-2 min-w-[110px]">Profilaksis (Eritro)</th>
                     <th class="p-2 text-center w-12">Aksi</th>
                   </tr>
                 </thead>
@@ -1188,10 +1409,10 @@
                 </tbody>
               </table>
             </div>
-            <p class="text-[11px] text-slate-500 mt-2 italic">* Jumlah kontak dan profilaksis di rekap sistem akan otomatis menyesuaikan dengan daftar nama yang dimasukkan di atas.</p>
+            <p class="text-[11px] text-slate-500 mt-2 italic">* Jumlah kontak dan profilaksis di rekap sistem akan otomatis tersinkron dengan rincian nama di atas.</p>
           </div>
 
-          <p class="text-xs text-slate-600 font-semibold pt-1">Rekap Jumlah Kontak Erat & Profilaksis 4 Lingkungan (Otomatis Tersinkron):</p>
+          <p class="text-xs text-slate-600 font-semibold pt-1">Rekap Jumlah Kontak Erat &amp; Profilaksis 4 Lingkungan (Otomatis Tersinkron):</p>
 
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <!-- Rumah -->
@@ -1249,15 +1470,20 @@
           </div>
         </div>
 
-        <!-- Tombol Aksi Submit -->
-        <div class="flex items-center justify-between pt-4 border-t border-slate-200">
-          <button type="button" onclick="window.SIDIF_APP.resetFormFields()" class="h-12 px-6 border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition">
-            Bersihkan Formulir
-          </button>
+        <!-- Tombol Aksi Submit & VOID Dokumen -->
+        <div class="flex flex-wrap items-center justify-between pt-4 border-t border-slate-200 gap-3">
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="window.SIDIF_APP.resetFormFields()" class="h-12 px-5 border border-slate-300 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition cursor-pointer text-xs">
+              Bersihkan Formulir
+            </button>
+            <button type="button" id="btn-void-case" onclick="window.SIDIF_APP.voidCurrentCase()" class="hidden h-12 px-5 bg-red-50 hover:bg-red-100 text-red-700 border-2 border-red-300 font-black rounded-xl transition cursor-pointer text-xs flex items-center gap-1.5">
+              <span>🚫 Batalkan Dokumen (VOID)</span>
+            </button>
+          </div>
           <div class="flex gap-3">
-            <button type="submit" class="h-12 px-8 bg-[#0F7A4F] hover:bg-[#15803D] text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2">
+            <button type="submit" id="btn-submit-case" class="h-12 px-8 bg-[#0F7A4F] hover:bg-[#15803D] text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              <span>SIMPAN & AJUKAN KASUS (DIF-3)</span>
+              <span id="btn-submit-label">SIMPAN &amp; AJUKAN KASUS (DIF-1)</span>
             </button>
           </div>
         </div>
@@ -2298,6 +2524,51 @@
       <span>Koordinasi Tim Difteri</span>
       <span id="chat-unread-badge" class="hidden min-w-[18px] h-[18px] px-1 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center font-black">0</span>
     </button>
+  </div>
+
+  <!-- MINIMALIST CLEAN FOOTER -->
+  <footer class="no-print mt-auto py-4 border-t border-slate-200 bg-white text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
+      <p>E-SIDIF — Elektronik Simulasi Difteri Jawa Timur &bull; Sesuai Standar Form DIF-1 &amp; DIF-3 Kemenkes RI</p>
+      <p id="easter-egg-trigger" onclick="window.SIDIF_APP.handleSecretTrigger()" class="cursor-pointer select-none text-[11px] text-slate-400 hover:text-slate-600 transition" title="Versi Sistem">v2.1 (Build 2026)</p>
+    </div>
+  </footer>
+
+  <!-- MODAL RAHASIA: BUKTI OTENTIK HAK CIPTA & PERANCANG SISTEM (SECRET EASTER EGG) -->
+  <div id="modal-secret-authorship" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm" onclick="if(event.target === this) this.classList.add('hidden')">
+    <div class="bg-slate-900 border-2 border-emerald-500/60 text-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95" onclick="event.stopPropagation()">
+      <div class="absolute -right-8 -bottom-8 w-36 h-36 rounded-full bg-emerald-500/10 pointer-events-none"></div>
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-[11px] font-black tracking-widest uppercase text-emerald-400">Verified System Origin Certificate</span>
+        </div>
+        <button onclick="document.getElementById('modal-secret-authorship').classList.add('hidden')" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-xs font-bold cursor-pointer">✕</button>
+      </div>
+      <div class="space-y-4 text-xs">
+        <div>
+          <h3 class="text-lg font-black text-white">E-SIDIF (Elektronik Simulasi Difteri)</h3>
+          <p class="text-slate-400 text-[11px]">Sistem Mandiri Surveilans Epidemiologi &amp; Penyelidikan Difteri 38 Kab/Kota</p>
+        </div>
+        <div class="bg-slate-800/80 rounded-xl p-3.5 space-y-2.5 border border-slate-700">
+          <div>
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Inisiator &amp; Konseptor Lapangan</span>
+            <strong class="text-sm font-black text-emerald-300">Bu A &amp; Tim Surveilans Epidemiologi P2P Jawa Timur</strong>
+          </div>
+          <div class="pt-2 border-t border-slate-700/60">
+            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Arsitek Sistem &amp; Lead Software Developer</span>
+            <strong class="text-sm font-black text-cyan-300">Dhodhy</strong>
+          </div>
+        </div>
+        <div class="bg-slate-950/60 rounded-lg p-2.5 font-mono text-[10px] text-slate-400 border border-slate-800 space-y-1">
+          <p>Hash: 35-JTM-DIFTERI-2026-DHODHY-BUA-AUTH-ORIGIN</p>
+          <p>Status: Original Creator Verified &bull; Engine v2.1</p>
+        </div>
+        <div class="text-right pt-2">
+          <button onclick="document.getElementById('modal-secret-authorship').classList.add('hidden')" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs cursor-pointer shadow-lg transition">Tutup Dokumen Bukti</button>
+        </div>
+      </div>
+    </div>
   </div>
 
 </body>

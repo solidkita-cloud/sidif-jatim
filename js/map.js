@@ -311,6 +311,17 @@ window.SIDIF_MAP = {
         }
       },
       click: function(e) {
+        if (self.selectedLayer === e.target) {
+          // Toggle off: klik ulang wilayah yang sama mengembalikan tampilan ke seluruh Provinsi Jatim
+          self.geoJsonLayer.resetStyle(self.selectedLayer);
+          self.selectedLayer = null;
+          e.target.closePopup();
+          if (window.SIDIF_APP && window.SIDIF_APP.resetToProvinceMap) {
+            window.SIDIF_APP.resetToProvinceMap();
+          }
+          return;
+        }
+
         if (self.selectedLayer) {
           self.geoJsonLayer.resetStyle(self.selectedLayer);
         }
