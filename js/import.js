@@ -523,6 +523,7 @@ window.SIDIF_IMPORT = {
 
       // Timpa total localStorage
       localStorage.setItem("sidif_cases_v4", JSON.stringify(this.pendingCases));
+      localStorage.setItem("sidif_migration_v4_applied", "true");
 
       if (window.SIDIF_STORE && window.SIDIF_STORE.logAudit) {
         window.SIDIF_STORE.logAudit(
@@ -540,6 +541,7 @@ window.SIDIF_IMPORT = {
       const merged = existing.concat(this.pendingCases);
 
       localStorage.setItem("sidif_cases_v4", JSON.stringify(merged));
+      localStorage.setItem("sidif_migration_v4_applied", "true");
 
       if (window.SIDIF_STORE && window.SIDIF_STORE.logAudit) {
         window.SIDIF_STORE.logAudit(

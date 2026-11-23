@@ -20290,29 +20290,19 @@ const SEED_CASES = [
 window.SIDIF_STORE = {
   // Inisialisasi Database
   init() {
+    const MIGRATION_KEY = 'sidif_migration_v4_applied';
     const stored = localStorage.getItem(STORAGE_KEYS.CASES);
-    let needSeed = !stored;
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          needSeed = true;
-        } else {
-          let totalK = 0;
-          parsed.forEach(c => {
-            totalK += (c.kontakRumah || c.kontakEratRumah || 0) + (c.kontakSekolah || 0) + (c.kontakTetangga || 0) + (c.kontakBermain || 0);
-          });
-          if (totalK > 900) {
-            console.log('SIDIF: Memperbarui database lokal dari data lama (' + totalK + ' kontak) ke kalibrasi resmi 828 kontak Dinkes Jatim.');
-            needSeed = true;
-          }
-        }
-      } catch (e) {
-        needSeed = true;
-      }
-    }
-    if (needSeed) {
+    const migrationDone = localStorage.getItem(MIGRATION_KEY);
+
+    if (!stored) {
+      // Database masih kosong sama sekali (pemasangan pertama)
       localStorage.setItem(STORAGE_KEYS.CASES, JSON.stringify(SEED_CASES));
+      localStorage.setItem(MIGRATION_KEY, 'true');
+    } else if (!migrationDone) {
+      // Migrasi 1x saja dari cache lama ke dataset kalibrasi 828
+      localStorage.setItem(STORAGE_KEYS.CASES, JSON.stringify(SEED_CASES));
+      localStorage.setItem(MIGRATION_KEY, 'true');
+      console.log('SIDIF: Migrasi 1x ke dataset resmi 828 kontak selesai diterapkan.');
     }
     if (!localStorage.getItem(STORAGE_KEYS.AUDIT)) {
       const initialLogs = [
