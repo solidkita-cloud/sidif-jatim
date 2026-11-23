@@ -136,10 +136,10 @@
             <span>MASUK PETUGAS</span>
           </button>
 
-          <!-- Tombol Akses Portal Unduh Laporan Eksekutif (HANYA MUNCUL UNTUK SUPER ADMIN PROVINSI) -->
-          <button id="header-admin-export-btn" onclick="window.SIDIF_APP.openSuperAdminExportModal()" class="hidden px-3.5 py-2 bg-slate-900 hover:bg-black text-amber-300 hover:text-amber-200 border border-amber-400/40 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition" title="Khusus Super Admin Dinkes Provinsi: Unduh Rekapitulasi Kasus & Laporan Excel">
+          <!-- Tombol Akses Portal Unduh Laporan Eksekutif & Kelola Data (HANYA MUNCUL UNTUK SUPER ADMIN PROVINSI) -->
+          <button id="header-admin-export-btn" onclick="window.SIDIF_APP.openSuperAdminExportModal()" class="hidden px-3.5 py-2 bg-slate-900 hover:bg-black text-amber-300 hover:text-amber-200 border border-amber-400/40 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition" title="Khusus Super Admin Dinkes Provinsi: Unduh Rekapitulasi Kasus, Laporan Excel & Kelola Data">
             <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <span>UNDUH LAPORAN EKSEKUTIF</span>
+            <span>KELOLA &amp; UNDUH LAPORAN</span>
           </button>
 
           <div id="header-user-badge" class="hidden flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs">
@@ -2320,6 +2320,7 @@
   <script src="js/map.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/import.js"></script>
   <script src="js/app.js"></script>
 
   <!-- ========================================================================= -->
@@ -2462,6 +2463,145 @@
             <span class="block text-[11px] text-slate-500 mt-0.5">Format ringkasan eksekutif epidemiologi</span>
           </button>
         </div>
+
+        <!-- Pilihan 5: Impor File Excel Master & Reset Database -->
+        <div class="p-4 bg-amber-50/80 border-2 border-amber-300 rounded-xl mt-4">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <h4 class="font-bold text-sm text-amber-950 flex items-center gap-2">
+                <span>3. Impor File Excel Master &amp; Reset / Perbarui Database</span>
+                <span class="px-2 py-0.5 bg-amber-200 text-amber-900 text-[10px] font-black rounded uppercase">Super Admin</span>
+              </h4>
+              <p class="text-xs text-amber-900 mt-1 leading-relaxed">
+                Unggah berkas Excel master (.xlsx / .xls) untuk memperbarui kasus atau <strong>mengganti total seluruh data dummy lama dengan data riil baru</strong> dari dinas. Sistem otomatis mendeteksi kolom (Smart Auto-Mapping) dan menampilkan pratonton sebelum dieksekusi.
+              </p>
+            </div>
+          </div>
+          
+          <div class="flex flex-wrap items-center gap-2 mt-3">
+            <input type="file" id="input-import-excel" accept=".xlsx, .xls" onchange="window.SIDIF_IMPORT.handleFileSelect(event)" class="hidden">
+            <button type="button" onclick="document.getElementById('input-import-excel').click()" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-2 transition cursor-pointer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/></svg>
+              <span>📤 Pilih Berkas Excel Master (.xlsx)</span>
+            </button>
+            <button type="button" onclick="window.SIDIF_IMPORT.downloadImportTemplate()" class="px-3.5 py-2.5 bg-white hover:bg-amber-100/60 text-amber-900 border border-amber-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer">
+              <svg class="w-4 h-4 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span>📥 Unduh Template Excel Kosong</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: PRATONTON & KONFIRMASI IMPOR EXCEL / RESET DATABASE               -->
+  <!-- ========================================================================= -->
+  <div id="modal-import-preview" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs overflow-y-auto" onclick="if(event.target === this) this.classList.add('hidden')">
+    <div class="bg-white rounded-2xl max-w-3xl w-full border border-slate-300 shadow-2xl overflow-hidden animate-in fade-in" onclick="event.stopPropagation()">
+      <div class="p-4 bg-amber-900 text-white flex justify-between items-center">
+        <div class="flex items-center gap-2.5">
+          <span class="w-3.5 h-3.5 rounded-full bg-amber-400 animate-pulse"></span>
+          <div>
+            <h3 class="font-black text-sm uppercase tracking-wider">Pratonton Impor Berkas Excel Master</h3>
+            <p id="import-preview-file" class="text-[11px] text-amber-200 font-mono">Nama_File.xlsx</p>
+          </div>
+        </div>
+        <button onclick="document.getElementById('modal-import-preview').classList.add('hidden')" class="w-8 h-8 rounded-lg bg-black/20 hover:bg-black/40 text-white flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+        <!-- Rangkuman Hasil Deteksi Kolom & Data -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+            <span class="text-[10px] font-bold text-slate-500 uppercase block">Total Kasus Terbaca</span>
+            <span id="import-preview-total" class="text-xl font-black text-slate-900">0 Kasus</span>
+          </div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+            <span class="text-[10px] font-bold text-slate-500 uppercase block">Wilayah Terdeteksi</span>
+            <span id="import-preview-kab" class="text-xl font-black text-slate-900">0 Kab/Kota</span>
+          </div>
+          <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-center">
+            <span class="text-[10px] font-bold text-red-600 uppercase block">Positif Kultur Lab</span>
+            <span id="import-preview-positif" class="text-xl font-black text-red-700">0 Kasus</span>
+          </div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+            <span class="text-[10px] font-bold text-slate-500 uppercase block">Kasus Meninggal</span>
+            <span id="import-preview-death" class="text-xl font-black text-slate-900">0 Kasus</span>
+          </div>
+          <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-center col-span-2 sm:col-span-1">
+            <span class="text-[10px] font-bold text-blue-700 uppercase block">Diberikan Terapi ADS</span>
+            <span id="import-preview-ads" class="text-xl font-black text-blue-800">0 Kasus</span>
+          </div>
+        </div>
+
+        <!-- Tabel Contoh 5 Baris Data Pertama -->
+        <div>
+          <h5 class="font-bold text-xs text-slate-700 mb-1.5 flex items-center gap-1.5">
+            <span>Contoh 5 Baris Pertama Terbaca:</span>
+            <span class="text-[10px] text-slate-400 font-normal">(Pastikan kolom nama dan wilayah sudah tepat)</span>
+          </h5>
+          <div class="overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700 text-[10px] uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="p-2">No</th>
+                  <th class="p-2">No Epid</th>
+                  <th class="p-2">Nama Pasien</th>
+                  <th class="p-2">Kabupaten/Kota</th>
+                  <th class="p-2 text-center">Hasil Lab</th>
+                  <th class="p-2 text-center">ADS</th>
+                  <th class="p-2 text-center">Kontak Erat</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody">
+                <!-- Sample rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Pilihan Aksi Eksekusi -->
+        <div class="p-4 bg-slate-100 rounded-xl border border-slate-200 space-y-3">
+          <span class="font-black text-xs text-slate-800 block">PILIH METODE IMPOR KE DATABASE:</span>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Tombol 1: Timpa / Reset Total -->
+            <button type="button" onclick="window.SIDIF_IMPORT.executeImport('replace')" class="p-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-left shadow-sm transition cursor-pointer flex flex-col justify-between">
+              <div>
+                <span class="font-black text-xs uppercase tracking-wide flex items-center gap-1">
+                  <span>🗑️ RESET TOTAL &amp; GANTI DATA</span>
+                </span>
+                <span class="text-[11px] text-red-100 block mt-1 leading-snug">
+                  Hapus seluruh data dummy lama dan ganti 100% dengan data Excel baru ini.
+                </span>
+              </div>
+              <span class="mt-2 text-[10px] font-bold bg-red-800 text-red-200 px-2 py-0.5 rounded w-fit">Rekomendasi jika data baru resmi</span>
+            </button>
+
+            <!-- Tombol 2: Tambahkan / Gabungkan -->
+            <button type="button" onclick="window.SIDIF_IMPORT.executeImport('append')" class="p-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-left shadow-sm transition cursor-pointer flex flex-col justify-between">
+              <div>
+                <span class="font-black text-xs uppercase tracking-wide flex items-center gap-1">
+                  <span>➕ GABUNGKAN / TAMBAH KASUS</span>
+                </span>
+                <span class="text-[11px] text-emerald-100 block mt-1 leading-snug">
+                  Simpan data yang ada, dan tambahkan kasus baru dari Excel ke dalam database.
+                </span>
+              </div>
+              <span class="mt-2 text-[10px] font-bold bg-emerald-900 text-emerald-200 px-2 py-0.5 rounded w-fit">Untuk kasus susulan / mingguan</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <button type="button" onclick="document.getElementById('modal-import-preview').classList.add('hidden')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer">
+          Batal
+        </button>
+      </div>
+    </div>
+  </div>
       </div>
     </div>
   </div>
