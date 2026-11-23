@@ -51,8 +51,15 @@ window.SIDIF_AUTH = {
       };
     }
 
-    // 2. Cari Akun Terdaftar
-    const acc = window.SIDIF_CONFIG.accounts.find(a => a.username.toUpperCase() === username);
+    // 2. Cari Akun Terdaftar (Mendukung input langsung atau dengan prefix "SIDIF_")
+    const cleanU = username.replace(/^SIDIF[_\-\s]*/i, "");
+    let acc = window.SIDIF_CONFIG.accounts.find(a => a.username.toUpperCase() === username);
+    if (!acc && cleanU) {
+      acc = window.SIDIF_CONFIG.accounts.find(a => 
+        a.username.toUpperCase() === ("SIDIF_" + cleanU) ||
+        a.username.toUpperCase() === cleanU
+      );
+    }
     if (!acc) {
       this.recordFailedAttempt();
       return { success: false, message: "Username tidak terdaftar dalam sistem SIDIF Jawa Timur." };
@@ -60,9 +67,9 @@ window.SIDIF_AUTH = {
 
     // 3. Verifikasi Password (Default: 12345678 atau Token Reset)
     const customPasswords = JSON.parse(localStorage.getItem("sidif_custom_passwords") || "{}");
-    const activePassword = customPasswords[username] || window.SIDIF_CONFIG.passwordDefault;
+    const activePassword = customPasswords[acc.username] || window.SIDIF_CONFIG.passwordDefault;
     const tokens = JSON.parse(localStorage.getItem(AUTH_KEYS.TOKENS) || "{}");
-    const validToken = tokens[username] && tokens[username].token === password && Date.now() < tokens[username].expires;
+    const validToken = tokens[acc.username] && tokens[acc.username].token === password && Date.now() < tokens[acc.username].expires;
 
     if (password !== activePassword && !validToken) {
       this.recordFailedAttempt();
@@ -132,6 +139,34 @@ window.SIDIF_AUTH = {
     localStorage.setItem(AUTH_KEYS.TOKENS, JSON.stringify(tokens));
     window.SIDIF_STORE.logAudit("SUPERADMIN", "GENERATE_RESET_TOKEN", `Menerbitkan token reset 24 jam untuk akun ${username}`);
     return tokenStr;
+  },
+
+  // Verifikasi Token Reset Sandi 24 Jam
+  verifyResetToken(token) {
+    token = (token || "").trim().toUpperCase();
+    if (!token) return { valid: false };
+    const tokens = JSON.parse(localStorage.getItem(AUTH_KEYS.TOKENS) || "{}");
+    for (const [username, info] of Object.entries(tokens)) {
+      if (info && info.token === token && Date.now() < info.expires) {
+        const acc = window.SIDIF_CONFIG.accounts.find(a => a.username.toUpperCase() === username.toUpperCase());
+        if (acc) {
+          const userSession = {
+            username: acc.username,
+            region: acc.region,
+            type: acc.type,
+            role: acc.role,
+            loginAt: new Date().toISOString()
+          };
+          sessionStorage.setItem(AUTH_KEYS.CURRENT_USER, JSON.stringify(userSession));
+          window.SIDIF_STORE.logAudit(acc.username, "LOGIN_TOKEN_SUCCESS", `Login darurat token 24 jam untuk ${acc.region}`);
+          if (window.SIDIF_APP && window.SIDIF_APP.updateMyPresence) {
+            window.SIDIF_APP.updateMyPresence("Online via Token");
+          }
+          return { valid: true, account: userSession };
+        }
+      }
+    }
+    return { valid: false };
   },
 
   // Ubah Kata Sandi Akun

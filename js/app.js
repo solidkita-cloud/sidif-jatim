@@ -60,6 +60,37 @@ window.SIDIF_APP = {
 
     window.scrollTo({ top: 0, behavior: "smooth" });
 
+    // Perbarui Tampilan Tab Navigasi Aktif
+    const navMap = {
+      "dashboard": "nav-dashboard",
+      "table-data": "nav-table",
+      "download-center": "nav-download",
+      "form-input": "nav-worklist",
+      "admin": "nav-admin"
+    };
+
+    Object.entries(navMap).forEach(([v, id]) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      if (v === viewName) {
+        if (v === "admin") {
+          btn.className = "px-3 py-2 rounded-lg bg-purple-100 text-purple-900 font-black shadow-xs cursor-pointer transition";
+        } else if (v === "form-input") {
+          btn.className = "px-3 py-2 bg-[#0F7A4F] text-white rounded-lg flex items-center gap-1.5 font-black shadow-xs cursor-pointer transition";
+        } else {
+          btn.className = "px-3 py-2 rounded-lg bg-emerald-100 text-[#0F7A4F] font-black shadow-xs flex items-center gap-1.5 cursor-pointer transition";
+        }
+      } else {
+        if (v === "admin") {
+          btn.className = "px-3 py-2 rounded-lg hover:bg-slate-100 text-purple-700 font-bold cursor-pointer transition";
+        } else if (v === "form-input") {
+          btn.className = "px-3 py-2 bg-emerald-50 text-[#0F7A4F] rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 font-bold cursor-pointer transition";
+        } else {
+          btn.className = "px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-1.5 cursor-pointer transition";
+        }
+      }
+    });
+
     if (viewName === "dashboard") {
       setTimeout(() => {
         if (!window.SIDIF_MAP.mapInstance) {
@@ -80,6 +111,7 @@ window.SIDIF_APP = {
     }
 
     if (viewName === "admin") {
+      this.populateAdminAccountsDropdown();
       this.renderAdminLogs();
     }
   },
@@ -165,12 +197,16 @@ window.SIDIF_APP = {
       regInput.value = user.region;
       regInput.setAttribute("readonly", "readonly");
       regInput.classList.add("bg-slate-100", "cursor-not-allowed");
+      this.populateKecamatanDropdown(user.region);
     } else {
       regInput.removeAttribute("readonly");
       regInput.classList.remove("bg-slate-100", "cursor-not-allowed");
+      if (!regInput.value || regInput.value === "Provinsi Jawa Timur") {
+        regInput.value = "Kabupaten Sidoarjo";
+      }
+      this.populateKecamatanDropdown(regInput.value);
     }
 
-    this.populateKecamatanDropdown(user.region);
     this.resetFormFields();
   },
 
@@ -1074,7 +1110,7 @@ window.SIDIF_APP = {
 
     // Sinkronkan daftar 38 Kabupaten / Kota pada dropdown filter
     const selEl = document.getElementById("export-filter-region");
-    if (selEl && window.SIDIF_FORMS && selEl.options.length <= 1) {
+    if (selEl && window.SIDIF_FORMS && (!selEl.options || selEl.options.length <= 1)) {
       const regions = Object.values(window.SIDIF_FORMS.KODE_WILAYAH_JATIM).sort((a,b) => parseInt(a.code,10) - parseInt(b.code,10));
       selEl.innerHTML = `<option value="all">Seluruh Jawa Timur (38 Kab/Kota)</option>` + 
         regions.map(r => `<option value="${r.name}">${r.code} - ${r.name}</option>`).join("");
@@ -1758,6 +1794,16 @@ window.SIDIF_APP = {
       bellBadge.innerText = count;
       bellBadge.classList.remove("hidden");
     }
+  },
+
+  populateAdminAccountsDropdown() {
+    const sel = document.getElementById("admin-token-user-select");
+    if (!sel) return;
+    const accounts = (window.SIDIF_CONFIG && window.SIDIF_CONFIG.accounts) ? window.SIDIF_CONFIG.accounts : [];
+    sel.innerHTML = '<option value="">-- Pilih Akun Kabupaten / Kota --</option>' + accounts
+      .filter(a => a.type === "kabupaten" || a.type === "kota")
+      .map(a => `<option value="${a.username}">${a.region} (${a.username})</option>`)
+      .join("");
   },
 
   renderAdminLogs() {
@@ -2633,6 +2679,22 @@ window.SIDIF_APP = {
       filterBulan.addEventListener("change", () => this.applyDashboardFilters());
     }
 
+    // Kabupaten Change -> Update Kecamatan Dropdown (Khusus Superadmin/Provinsi)
+    const formKabEl = document.getElementById("form-kabupaten");
+    if (formKabEl) {
+      const updateKab = () => {
+        this.populateKecamatanDropdown(formKabEl.value);
+        if (window.SIDIF_FORMS) {
+          const epidEl = document.getElementById("form-no-epid");
+          if (epidEl && !epidEl.value) {
+            epidEl.value = window.SIDIF_FORMS.generateNoEpid(formKabEl.value, null, null, "digits");
+          }
+        }
+      };
+      formKabEl.addEventListener("change", updateKab);
+      formKabEl.addEventListener("blur", updateKab);
+    }
+
     // Kecamatan Change -> Update Kelurahan Dropdown
     const formKec = document.getElementById("form-kecamatan");
     if (formKec) {
@@ -2778,7 +2840,12 @@ window.handleForgotTokenModal = function() {
 };
 
 window.handleGenerateTokenAdmin = function() {
-  const selUser = document.getElementById("admin-token-user-select").value;
+  const selEl = document.getElementById("admin-token-user-select");
+  const selUser = selEl ? selEl.value : "";
+  if (!selUser) {
+    alert("Harap pilih akun Kabupaten / Kota terlebih dahulu.");
+    return;
+  }
   const token = window.SIDIF_AUTH.generateResetToken(selUser);
   const box = document.getElementById("admin-token-display-box");
   const strEl = document.getElementById("admin-token-str");

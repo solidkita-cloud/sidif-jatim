@@ -71,16 +71,16 @@
 
         <!-- Navigation Tabs -->
         <nav class="flex items-center gap-1 text-sm font-semibold">
-          <button onclick="window.SIDIF_APP.showView('dashboard')" class="px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700">Dashboard & Peta</button>
-          <button id="nav-table" onclick="window.SIDIF_APP.showView('table-data')" class="hidden px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700">Tabel Kasus & Form DIF-3</button>
-          <button onclick="window.SIDIF_APP.showView('download-center')" class="px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-1.5">
+          <button id="nav-dashboard" onclick="window.SIDIF_APP.showView('dashboard')" class="px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700 cursor-pointer transition">Dashboard & Peta</button>
+          <button id="nav-table" onclick="window.SIDIF_APP.showView('table-data')" class="hidden px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700 cursor-pointer transition">Tabel Kasus & Form DIF-3</button>
+          <button id="nav-download" onclick="window.SIDIF_APP.showView('download-center')" class="px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-1.5 cursor-pointer transition">
             <svg class="w-4 h-4 text-[#0F7A4F]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <span>Pusat Unduhan & Juknis</span>
           </button>
-          <button id="nav-worklist" onclick="window.SIDIF_APP.showView('form-input')" class="hidden px-3 py-2 bg-emerald-50 text-[#0F7A4F] rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 font-bold">
+          <button id="nav-worklist" onclick="window.SIDIF_APP.showView('form-input')" class="hidden px-3 py-2 bg-emerald-50 text-[#0F7A4F] rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 font-bold cursor-pointer transition">
             <span>+ Input Kasus (Form DIF-3)</span>
           </button>
-          <button id="nav-admin" onclick="window.SIDIF_APP.showView('admin')" class="hidden px-3 py-2 rounded-lg hover:bg-slate-100 text-purple-700 font-bold">Panel Admin</button>
+          <button id="nav-admin" onclick="window.SIDIF_APP.showView('admin')" class="hidden px-3 py-2 rounded-lg hover:bg-slate-100 text-purple-700 font-bold cursor-pointer transition">Panel Admin</button>
         </nav>
 
         <!-- Right Side: Font Resizer, Notification Bell & Auth Controls -->
@@ -334,7 +334,7 @@
 
         <!-- 6. Respon Cepat PE <24 Jam -->
         <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
-          <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kecepatan PE <24 Jam</p>
+          <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kecepatan PE &lt;24 Jam</p>
           <p id="kpi-pe" class="text-2xl lg:text-3xl font-black text-slate-800 mt-1">94.2%</p>
           <p class="text-[11px] text-emerald-700 mt-1 font-semibold">Tepat Waktu Menyelidiki</p>
         </div>
@@ -613,7 +613,9 @@
             <span class="text-[10px] text-slate-400 block mt-1">Teman Sepermainan</span>
           </div>
         </div>
-      <!-- GRAFIK ROW 4: 3 GRAFIK INDIKATOR KHUSUS (ADS, CFR KEMATIAN, KETEPATAN PE <24 JAM) -->
+      </div>
+
+      <!-- GRAFIK ROW 4: 3 GRAFIK INDIKATOR KHUSUS (ADS, CFR KEMATIAN, KETEPATAN PE &lt;24 JAM) -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         <!-- 1. Terapi ADS (Proporsi Diberi ADS vs Seluruh Kasus) -->
@@ -724,6 +726,8 @@
         </div>
 
       </div>
+
+    </main>
 
 
     <!-- ========================================================================= -->
@@ -2599,9 +2603,6 @@
         <button type="button" onclick="document.getElementById('modal-import-preview').classList.add('hidden')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer">
           Batal
         </button>
-      </div>
-    </div>
-  </div>
       </div>
     </div>
   </div>
