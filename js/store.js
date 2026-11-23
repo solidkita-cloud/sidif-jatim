@@ -20290,7 +20290,28 @@ const SEED_CASES = [
 window.SIDIF_STORE = {
   // Inisialisasi Database
   init() {
-    if (!localStorage.getItem(STORAGE_KEYS.CASES)) {
+    const stored = localStorage.getItem(STORAGE_KEYS.CASES);
+    let needSeed = !stored;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          needSeed = true;
+        } else {
+          let totalK = 0;
+          parsed.forEach(c => {
+            totalK += (c.kontakRumah || c.kontakEratRumah || 0) + (c.kontakSekolah || 0) + (c.kontakTetangga || 0) + (c.kontakBermain || 0);
+          });
+          if (totalK > 900) {
+            console.log('SIDIF: Memperbarui database lokal dari data lama (' + totalK + ' kontak) ke kalibrasi resmi 828 kontak Dinkes Jatim.');
+            needSeed = true;
+          }
+        }
+      } catch (e) {
+        needSeed = true;
+      }
+    }
+    if (needSeed) {
       localStorage.setItem(STORAGE_KEYS.CASES, JSON.stringify(SEED_CASES));
     }
     if (!localStorage.getItem(STORAGE_KEYS.AUDIT)) {

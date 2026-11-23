@@ -65,7 +65,7 @@ window.SIDIF_CLOUD = {
   startRealtimeListener() {
     if (!this.db) return;
 
-    const casesCol = this.db.collection("difteri_cases_2026");
+    const casesCol = this.db.collection("difteri_cases_v4");
     const currentUser = window.SIDIF_AUTH ? window.SIDIF_AUTH.getCurrentUser() : null;
 
     this.unsubscribeListener = casesCol.onSnapshot((snapshot) => {
@@ -191,7 +191,7 @@ window.SIDIF_CLOUD = {
     if (!this.db || !this.isOnline) return false;
 
     try {
-      await this.db.collection("difteri_cases_2026").doc(caseData.id).set(caseData, { merge: true });
+      await this.db.collection("difteri_cases_v4").doc(caseData.id).set(caseData, { merge: true });
       window.SIDIF_STORE.logAudit("SYSTEM_CLOUD", "CLOUD_SYNC_SUCCESS", `Berhasil menyinkronkan kasus ${caseData.noEpid} ke Google Cloud Firestore.`);
       return true;
     } catch (e) {
@@ -205,7 +205,7 @@ window.SIDIF_CLOUD = {
     if (!this.db || !this.isOnline) return;
 
     try {
-      const snap = await this.db.collection("difteri_cases_2026").limit(1).get();
+      const snap = await this.db.collection("difteri_cases_v4").limit(1).get();
       if (snap.empty) {
         console.log("Database Firestore kosong, mengunggah 277 kasus Jawa Timur ke Cloud...");
         const localCases = window.SIDIF_STORE.getCases();
@@ -213,7 +213,7 @@ window.SIDIF_CLOUD = {
 
         // Unggah bertahap (batch max 500)
         localCases.slice(0, 450).forEach(c => {
-          const ref = this.db.collection("difteri_cases_2026").doc(c.id);
+          const ref = this.db.collection("difteri_cases_v4").doc(c.id);
           batch.set(ref, c);
         });
 
